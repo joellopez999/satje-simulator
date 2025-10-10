@@ -3,8 +3,10 @@
 import { useState, useEffect } from 'react'
 import { Search, Upload, FileText, Save, Plus, X } from 'lucide-react'
 import Sidebar from '@/components/Sidebar'
+import MobileHeader from '@/components/MobileHeader'
 import { useUser } from '@/app/providers'
 import { getProcesses, searchProcesses } from '@/lib/storage'
+import { uploadFileToSupabase, validateFile } from '@/lib/supabase-storage-utils'
 
 export default function EscritosPage() {
   const { user } = useUser()

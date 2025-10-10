@@ -15,8 +15,10 @@ import {
   CheckCircle
 } from 'lucide-react'
 import Sidebar from '@/components/Sidebar'
+import MobileHeader from '@/components/MobileHeader'
 import { useUser } from '@/app/providers'
 import { getPendingWritings, getProcesses, createActivity, markWritingAsDispatched } from '@/lib/storage'
+import { uploadFileToSupabase, validateFile } from '@/lib/supabase-storage-utils'
 
 export default function ProvidenciasPage() {
   const { user } = useUser()
