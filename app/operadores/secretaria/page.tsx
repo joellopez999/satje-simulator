@@ -16,8 +16,10 @@ import {
 } from 'lucide-react'
 import Sidebar from '@/components/Sidebar'
 import { getProcesses, createActivity } from '@/lib/simple-storage'
+import { useUser } from '@/app/providers'
 
 export default function SecretariaPage() {
+  const { user } = useUser()
   const [showForm, setShowForm] = useState(false)
   const [searchTerm, setSearchTerm] = useState('')
   const [searchResults, setSearchResults] = useState<any[]>([])

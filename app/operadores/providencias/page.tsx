@@ -170,7 +170,9 @@ export default function ProvidenciasPage() {
       proceso_id: '',
       expediente_id: '',
       escrito_vinculado: '',
-      archivo: null
+      archivo: null,
+      solicitar_secretaria: false,
+      solicitud_secretaria: ''
     })
   }
 
@@ -304,7 +306,7 @@ export default function ProvidenciasPage() {
         tipo: 'providencia' as const,
         titulo: formData.titulo,
         contenido: formData.contenido,
-        archivo_url: archivoBase64,
+        archivo_url: archivoBase64 || undefined,
         creado_por: user?.name || 'Usuario',
         fecha_creacion: new Date().toISOString(),
         metadata: {
@@ -396,7 +398,7 @@ export default function ProvidenciasPage() {
   return (
     <div className="min-h-screen bg-judicial-50">
       <div className="flex">
-        <Sidebar user={user} />
+        <Sidebar />
         
         <div className="flex-1 ml-64">
           <div className="p-8">

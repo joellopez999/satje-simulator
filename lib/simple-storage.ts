@@ -33,6 +33,9 @@ export interface Actividad {
   contenido: string
   creado_por: string
   fecha_creacion: string
+  despachado?: boolean
+  fecha_despacho?: string
+  despachado_por?: string
   metadata?: Record<string, any>
 }
 

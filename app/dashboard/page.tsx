@@ -14,7 +14,7 @@ export default function DashboardPage() {
     procesosAcumulados: 0,
     procesosArchivados: 0,
     escritosPendientes: 0,
-    actividadesRecientes: []
+    actividadesRecientes: [] as any[]
   })
   const { user } = useUser()
 
@@ -31,7 +31,7 @@ export default function DashboardPage() {
         
         // Contar escritos pendientes (actividades no despachadas)
         let escritosPendientes = 0
-        const actividadesRecientes = []
+        const actividadesRecientes: any[] = []
         
         procesos.forEach(proceso => {
           if (proceso.expedientes) {

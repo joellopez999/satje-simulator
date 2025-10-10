@@ -6,6 +6,7 @@ import { Save, X, User, Users, Scale, Hash, Mail, Briefcase } from 'lucide-react
 import Sidebar from '@/components/Sidebar'
 import { useUser } from '@/app/providers'
 import { getProcesses, updateProcess, getUsers } from '@/lib/storage'
+import { Process } from '@/lib/types'
 
 export default function EditarProcesoPage() {
   const { user } = useUser()
@@ -30,7 +31,7 @@ export default function EditarProcesoPage() {
     asunto: '',
     lugar: '',
     juez_id: '',
-    estado: 'activo'
+    estado: 'activo' as 'activo' | 'acumulado' | 'archivado' | 'concluido'
   })
 
   // Obtener lista de jueces
@@ -167,7 +168,7 @@ export default function EditarProcesoPage() {
   return (
     <div className="min-h-screen bg-judicial-50">
       <div className="flex">
-        <Sidebar user={user} />
+        <Sidebar />
 
         <div className="flex-1 ml-64">
           <div className="p-8">

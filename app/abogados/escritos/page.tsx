@@ -156,7 +156,7 @@ export default function EscritosPage() {
       const expedienteIndex = procesos[procesoIndex].expedientes?.findIndex(
         e => e.id === selectedExpediente.id
       )
-      if (expedienteIndex === -1 || !procesos[procesoIndex].expedientes) {
+      if (expedienteIndex === -1 || expedienteIndex === undefined || !procesos[procesoIndex].expedientes) {
         throw new Error('Expediente no encontrado')
       }
 
@@ -186,7 +186,7 @@ export default function EscritosPage() {
   return (
     <div className="min-h-screen bg-judicial-50">
       <div className="flex">
-        <Sidebar user={user} />
+        <Sidebar />
         
         <div className="flex-1 ml-64">
           <div className="p-8">

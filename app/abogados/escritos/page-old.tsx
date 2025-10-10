@@ -117,7 +117,7 @@ export default function EscritosPage() {
   return (
     <div className="min-h-screen bg-judicial-50">
       <div className="flex">
-        <Sidebar user={user} />
+        <Sidebar />
         
         <div className="flex-1 ml-64">
           <div className="p-8">

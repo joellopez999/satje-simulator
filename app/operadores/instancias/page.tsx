@@ -195,7 +195,7 @@ export default function InstanciasPage() {
 
       // Verificar si la instancia ya existe
       const instanciaText = selectedInstance === 'segunda' ? 'segunda' : 'tercera'
-      const instanciaExistente = selectedProcess.expedientes?.find(exp => exp.instancia === instanciaText)
+      const instanciaExistente = selectedProcess.expedientes?.find((exp: any) => exp.instancia === instanciaText)
       
       if (instanciaExistente) {
         alert(`La ${selectedInstance === 'segunda' ? 'Segunda Instancia' : 'Tercera Instancia Extraordinaria'} ya existe para este proceso.`)
@@ -210,8 +210,8 @@ export default function InstanciasPage() {
         id: `exp-${selectedProcess.id}-${numeroExpediente}`,
         proceso_id: selectedProcess.id,
         numero_expediente: numeroExpediente,
-        instancia: instanciaText,
-        estado: 'activo',
+        instancia: instanciaText as 'segunda' | 'tercera',
+        estado: 'activo' as const,
         fecha_creacion: new Date().toISOString(),
         actividades: []
       }

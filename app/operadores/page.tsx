@@ -50,11 +50,11 @@ export default function OperadoresPage() {
   }, [])
 
   // Generar escritos pendientes basados en procesos reales
-  const escritosPendientes = processes.flatMap(process => 
-    process.expedientes?.flatMap(expediente => 
+  const escritosPendientes = processes.flatMap(process =>
+    process.expedientes?.flatMap((expediente: any) =>
       expediente.actividades
-        ?.filter(actividad => actividad.tipo === 'escrito' && !actividad.despachado)
-        ?.map(actividad => ({
+        ?.filter((actividad: any) => actividad.tipo === 'escrito' && !actividad.despachado)
+        ?.map((actividad: any) => ({
           id: actividad.id,
           numero_causa: process.numero_causa,
           actor: process.actor,
@@ -79,15 +79,15 @@ export default function OperadoresPage() {
 
   // Generar escritos despachados recientemente (últimos 7 días)
   const escritosDespachados = processes.flatMap(process => 
-    process.expedientes?.flatMap(expediente => 
+    process.expedientes?.flatMap((expediente: any) => 
       expediente.actividades
-        ?.filter(actividad => 
+        ?.filter((actividad: any) => 
           actividad.tipo === 'escrito' && 
           actividad.despachado && 
           actividad.fecha_despacho &&
           (Date.now() - new Date(actividad.fecha_despacho).getTime()) < (7 * 24 * 60 * 60 * 1000)
         )
-        ?.map(actividad => ({
+        ?.map((actividad: any) => ({
           id: actividad.id,
           numero_causa: process.numero_causa,
           actor: process.actor,

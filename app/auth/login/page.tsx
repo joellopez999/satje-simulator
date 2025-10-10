@@ -186,7 +186,10 @@ export default function LoginPage() {
       localStorage.setItem('satje_activity_logs', JSON.stringify(existingLogs))
 
       // Actualizar el contexto de usuario
-      login(userSession)
+      login({
+        ...userSession,
+        role: user.role as 'admin' | 'juez' | 'secretario' | 'abogado' | 'public'
+      })
 
       alert(`Bienvenido, ${user.name}`)
       router.push('/')

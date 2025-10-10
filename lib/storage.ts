@@ -5,7 +5,15 @@ export interface Process {
   id: string
   numero_causa: string
   actor: string
+  cedula_actor: string
+  correo_actor: string
+  abogado_actor: string
+  correo_abogado_actor: string
   demandado: string
+  cedula_demandado: string
+  correo_demandado: string
+  abogado_demandado: string
+  correo_abogado_demandado: string
   materia: string
   asunto: string
   lugar: string
@@ -397,7 +405,7 @@ export const createActivity = (activityData: Omit<Actividad, 'id'>): Actividad =
   const expedienteIndex = processes[procesoIndex].expedientes?.findIndex(
     e => e.id === activityData.expediente_id
   )
-  if (expedienteIndex === -1 || !processes[procesoIndex].expedientes) {
+  if (expedienteIndex === -1 || expedienteIndex === undefined || !processes[procesoIndex].expedientes) {
     throw new Error('Expediente no encontrado')
   }
 

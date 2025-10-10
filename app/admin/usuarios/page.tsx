@@ -35,7 +35,7 @@ export default function UsuariosPage() {
   const [formData, setFormData] = useState({
     name: '',
     email: '',
-    role: 'abogado' as const,
+    role: 'abogado' as 'admin' | 'juez' | 'secretario' | 'abogado' | 'tercero',
     password: ''
   })
   const [passwordData, setPasswordData] = useState({

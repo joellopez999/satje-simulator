@@ -341,11 +341,11 @@ export const initializeSampleData = async (): Promise<void> => {
 
     // Crear usuarios de ejemplo
     const users = [
-      { email: 'admin@satje.com', name: 'Administrador', role: 'admin' },
-      { email: 'juez1@satje.com', name: 'Dr. Juan Pérez', role: 'juez' },
-      { email: 'juez2@satje.com', name: 'Dra. María García', role: 'juez' },
-      { email: 'secretario1@satje.com', name: 'Carlos López', role: 'secretario' },
-      { email: 'abogado1@satje.com', name: 'Ana Martínez', role: 'abogado' }
+      { email: 'admin@satje.com', name: 'Administrador', role: 'admin' as const },
+      { email: 'juez1@satje.com', name: 'Dr. Juan Pérez', role: 'juez' as const },
+      { email: 'juez2@satje.com', name: 'Dra. María García', role: 'juez' as const },
+      { email: 'secretario1@satje.com', name: 'Carlos López', role: 'secretario' as const },
+      { email: 'abogado1@satje.com', name: 'Ana Martínez', role: 'abogado' as const }
     ]
 
     for (const user of users) {
