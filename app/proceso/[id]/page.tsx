@@ -21,7 +21,9 @@ import {
   AlertCircle
 } from 'lucide-react'
 import Sidebar from '@/components/Sidebar'
+import MobileHeader from '@/components/MobileHeader'
 import { getProcesses } from '@/lib/simple-storage'
+import { useUser } from '@/app/providers'
 
 export default function ProcesoDetailPage() {
   const params = useParams()
@@ -31,6 +33,8 @@ export default function ProcesoDetailPage() {
   const [showFilesModal, setShowFilesModal] = useState(false)
   const [selectedActivityFiles, setSelectedActivityFiles] = useState<any[]>([])
   const [isLoading, setIsLoading] = useState(true)
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false)
+  const { user } = useUser()
 
   useEffect(() => {
     if (params.id) {
@@ -177,9 +181,15 @@ export default function ProcesoDetailPage() {
   if (!proceso) {
     return (
       <div className="min-h-screen bg-gray-50">
+        {/* Mobile Header */}
+        {user && <MobileHeader onMenuClick={() => setIsSidebarOpen(true)} />}
+        
         <div className="flex">
-          <Sidebar />
-          <div className="flex-1 ml-64 p-8">
+          <Sidebar 
+            isOpen={isSidebarOpen} 
+            onClose={() => setIsSidebarOpen(false)} 
+          />
+          <div className="flex-1 lg:ml-64 p-4 lg:p-8">
             <div className="max-w-4xl mx-auto">
               <div className="text-center">
                 <AlertCircle className="h-16 w-16 text-red-500 mx-auto mb-4" />
@@ -204,10 +214,16 @@ export default function ProcesoDetailPage() {
 
   return (
     <div className="min-h-screen bg-gray-50">
+      {/* Mobile Header */}
+      {user && <MobileHeader onMenuClick={() => setIsSidebarOpen(true)} />}
+      
       <div className="flex">
-        <Sidebar />
+        <Sidebar 
+          isOpen={isSidebarOpen} 
+          onClose={() => setIsSidebarOpen(false)} 
+        />
         
-        <div className="flex-1 ml-64 p-8">
+        <div className="flex-1 lg:ml-64 p-4 lg:p-8">
           <div className="max-w-6xl mx-auto">
             {/* Header */}
             <div className="mb-8">

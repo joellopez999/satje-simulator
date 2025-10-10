@@ -15,6 +15,7 @@ import {
   Scale
 } from 'lucide-react'
 import Sidebar from '@/components/Sidebar'
+import MobileHeader from '@/components/MobileHeader'
 import { getProcesses, createActivity } from '@/lib/simple-storage'
 import { useUser } from '@/app/providers'
 
@@ -26,6 +27,7 @@ export default function SecretariaPage() {
   const [selectedProcess, setSelectedProcess] = useState<any>(null)
   const [selectedInstance, setSelectedInstance] = useState<string>('')
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false)
   const [processes, setProcesses] = useState<any[]>([])
   
   const [formData, setFormData] = useState({
@@ -263,10 +265,16 @@ export default function SecretariaPage() {
 
   return (
     <div className="min-h-screen bg-judicial-50">
+      {/* Mobile Header */}
+      <MobileHeader onMenuClick={() => setIsSidebarOpen(true)} />
+      
       <div className="flex">
-        <Sidebar />
+        <Sidebar 
+          isOpen={isSidebarOpen} 
+          onClose={() => setIsSidebarOpen(false)} 
+        />
         
-        <div className="flex-1 ml-64">
+        <div className="flex-1 lg:ml-64">
           <div className="p-8">
             {/* Header */}
             <div className="mb-8">
