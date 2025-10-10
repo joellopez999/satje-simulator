@@ -81,7 +81,7 @@ export default function CrearCausaPage() {
         asunto: formData.asunto,
         lugar: formData.lugar,
         juez_id: formData.juez_id,
-        estado: 'activo',
+        estado: 'activo' as const,
         fecha_creacion: new Date().toISOString(),
         fecha_actualizacion: new Date().toISOString(),
         es_acumulado: false,
@@ -89,8 +89,8 @@ export default function CrearCausaPage() {
           id: `exp-${Date.now()}`,
           proceso_id: `proc-${Date.now()}`,
           numero_expediente: 1,
-          instancia: 'primera',
-          estado: 'activo',
+          instancia: 'primera' as const,
+          estado: 'activo' as const,
           fecha_creacion: new Date().toISOString(),
           actividades: []
         }]
