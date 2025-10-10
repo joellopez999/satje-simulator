@@ -3,12 +3,14 @@
 import { useState, useEffect } from 'react'
 import { Inbox, FileText, Clock, AlertCircle, CheckCircle, Plus, Eye, CheckSquare, RefreshCw, Calendar } from 'lucide-react'
 import Sidebar from '@/components/Sidebar'
+import MobileHeader from '@/components/MobileHeader'
 import { getProcesses, createActivity } from '@/lib/simple-storage'
 
 export default function OperadoresPage() {
   const [activeTab, setActiveTab] = useState('buzon')
   const [processes, setProcesses] = useState<any[]>([])
   const [isLoading, setIsLoading] = useState(true)
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false)
   const [showProvidenciaForm, setShowProvidenciaForm] = useState(false)
   const [selectedEscrito, setSelectedEscrito] = useState<any>(null)
   const [providenciaData, setProvidenciaData] = useState({
@@ -291,12 +293,18 @@ export default function OperadoresPage() {
 
   return (
     <div className="min-h-screen bg-gray-50">
+      {/* Mobile Header */}
+      <MobileHeader onMenuClick={() => setIsSidebarOpen(true)} />
+      
       <div className="flex">
         {/* Sidebar */}
-        <Sidebar />
+        <Sidebar 
+          isOpen={isSidebarOpen} 
+          onClose={() => setIsSidebarOpen(false)} 
+        />
 
         {/* Main Content */}
-        <div className="flex-1 ml-64 p-8">
+        <div className="flex-1 lg:ml-64 p-4 lg:p-8">
           <div className="max-w-7xl mx-auto">
             {/* Header */}
             <div className="mb-8">

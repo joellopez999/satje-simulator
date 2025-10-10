@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import {
   Scale,
@@ -14,13 +14,18 @@ import {
   LogOut,
   ChevronRight,
   ChevronDown,
-  FileText
+  FileText,
+  Menu,
+  X
 } from 'lucide-react'
 import { useUser } from '@/app/providers'
 
-interface SidebarProps {}
+interface SidebarProps {
+  isOpen?: boolean
+  onClose?: () => void
+}
 
-export default function Sidebar({}: SidebarProps) {
+export default function Sidebar({ isOpen = false, onClose }: SidebarProps) {
   const { user, logout } = useUser()
   const [expandedSections, setExpandedSections] = useState<string[]>([])
 
@@ -31,6 +36,23 @@ export default function Sidebar({}: SidebarProps) {
         : [...prev, section]
     )
   }
+
+  // Cerrar sidebar al hacer clic fuera en móvil
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (isOpen && onClose) {
+        const sidebar = document.getElementById('sidebar')
+        if (sidebar && !sidebar.contains(event.target as Node)) {
+          onClose()
+        }
+      }
+    }
+
+    if (isOpen) {
+      document.addEventListener('mousedown', handleClickOutside)
+      return () => document.removeEventListener('mousedown', handleClickOutside)
+    }
+  }, [isOpen, onClose])
 
   const menuItems = [
     {
@@ -112,16 +134,38 @@ export default function Sidebar({}: SidebarProps) {
       }
 
   return (
-    <div className="fixed left-0 top-0 h-full w-64 bg-white border-r border-judicial-200 shadow-sm">
-      <div className="p-6">
-        {/* Logo */}
-        <div className="flex items-center gap-3 mb-8">
-          <Scale className="h-8 w-8 text-primary-600" />
-          <div>
-            <h1 className="text-xl font-bold text-judicial-900">SATJE</h1>
-            <p className="text-xs text-judicial-600">Simulator</p>
+    <>
+      {/* Overlay para móvil */}
+      {isOpen && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 z-40 lg:hidden" onClick={onClose} />
+      )}
+      
+      {/* Sidebar */}
+      <div 
+        id="sidebar"
+        className={`
+          fixed lg:static top-0 left-0 h-full w-64 bg-white border-r border-judicial-200 shadow-sm z-50 transform transition-transform duration-300 ease-in-out
+          ${isOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}
+        `}
+      >
+        <div className="p-6">
+          {/* Header con botón de cerrar en móvil */}
+          <div className="flex items-center justify-between mb-8">
+            <div className="flex items-center gap-3">
+              <Scale className="h-8 w-8 text-primary-600" />
+              <div>
+                <h1 className="text-xl font-bold text-judicial-900">SATJE</h1>
+                <p className="text-xs text-judicial-600">Simulator</p>
+              </div>
+            </div>
+            {/* Botón de cerrar solo en móvil */}
+            <button
+              onClick={onClose}
+              className="lg:hidden p-2 rounded-md hover:bg-gray-100"
+            >
+              <X className="h-5 w-5" />
+            </button>
           </div>
-        </div>
 
         {/* User Info */}
         {user ? (
@@ -227,7 +271,8 @@ export default function Sidebar({}: SidebarProps) {
                 </button>
               </div>
             )}
+        </div>
       </div>
-    </div>
+    </>
   )
 }

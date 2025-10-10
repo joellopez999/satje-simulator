@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { Search, Scale, FileText } from 'lucide-react'
 import Sidebar from '@/components/Sidebar'
+import MobileHeader from '@/components/MobileHeader'
 import { getProcesses } from '@/lib/simple-storage'
 import { useUser } from '@/app/providers'
 
@@ -14,6 +15,7 @@ export default function HomePage() {
   const [isLoadingProcesses, setIsLoadingProcesses] = useState(true)
   const [searchTerm, setSearchTerm] = useState('')
   const [showNoResultsMessage, setShowNoResultsMessage] = useState(false)
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false)
   const { user, isLoading } = useUser()
   const router = useRouter()
 
@@ -106,12 +108,20 @@ export default function HomePage() {
 
   return (
     <div className="min-h-screen bg-gray-50">
+      {/* Mobile Header */}
+      {user && <MobileHeader onMenuClick={() => setIsSidebarOpen(true)} />}
+      
       <div className="flex">
         {/* Sidebar - Solo mostrar si hay usuario autenticado */}
-        {user && <Sidebar />}
+        {user && (
+          <Sidebar 
+            isOpen={isSidebarOpen} 
+            onClose={() => setIsSidebarOpen(false)} 
+          />
+        )}
 
         {/* Main Content */}
-        <div className={`flex-1 ${user ? 'ml-64' : ''} flex items-center justify-center p-8`}>
+        <div className={`flex-1 ${user ? 'lg:ml-64' : ''} flex items-center justify-center p-4 lg:p-8`}>
           <div className="max-w-4xl w-full">
             {/* Header */}
             <div className="mb-8 text-center">

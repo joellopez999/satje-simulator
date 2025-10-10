@@ -3,11 +3,13 @@
 import { useState, useEffect } from 'react'
 import { FileText, Users, Scale, Shield, Briefcase, Settings, TrendingUp, Clock, CheckCircle, AlertCircle, Eye, Plus } from 'lucide-react'
 import Sidebar from '@/components/Sidebar'
+import MobileHeader from '@/components/MobileHeader'
 import { useUser } from '@/app/providers'
 import { getProcesses } from '@/lib/simple-storage'
 
 export default function DashboardPage() {
   const [isLoading, setIsLoading] = useState(true)
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false)
   const [stats, setStats] = useState({
     totalProcesos: 0,
     procesosActivos: 0,
@@ -100,12 +102,18 @@ export default function DashboardPage() {
 
   return (
     <div className="min-h-screen bg-gray-50">
+      {/* Mobile Header */}
+      <MobileHeader onMenuClick={() => setIsSidebarOpen(true)} />
+      
       <div className="flex">
         {/* Sidebar */}
-        <Sidebar />
+        <Sidebar 
+          isOpen={isSidebarOpen} 
+          onClose={() => setIsSidebarOpen(false)} 
+        />
 
         {/* Main Content */}
-        <div className="flex-1 ml-64 p-8">
+        <div className="flex-1 lg:ml-64 p-4 lg:p-8">
           <div className="max-w-7xl mx-auto">
             {/* Header */}
             <div className="mb-8">
