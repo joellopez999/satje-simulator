@@ -17,6 +17,7 @@ import {
 import Sidebar from '@/components/Sidebar'
 import MobileHeader from '@/components/MobileHeader'
 import { getProcesses, createActivity } from '@/lib/simple-storage'
+import { uploadFileToSupabase, validateFile } from '@/lib/supabase-storage-utils'
 import { useUser } from '@/app/providers'
 
 export default function SecretariaPage() {
@@ -154,18 +155,14 @@ export default function SecretariaPage() {
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (file) {
-      // Validar tipo de archivo
-      const allowedTypes = ['application/pdf']
-      if (!allowedTypes.includes(file.type)) {
-        alert('Solo se permiten archivos PDF')
-        e.target.value = ''
-        return
-      }
+      // Validar archivo usando la utilidad
+      const validation = validateFile(file, {
+        maxSize: 10 * 1024 * 1024, // 10MB
+        allowedTypes: ['application/pdf']
+      })
       
-      // Validar tamaño (máximo 10MB)
-      const maxSize = 10 * 1024 * 1024 // 10MB
-      if (file.size > maxSize) {
-        alert('El archivo no puede ser mayor a 10MB')
+      if (!validation.valid) {
+        alert(validation.error)
         e.target.value = ''
         return
       }
@@ -194,15 +191,23 @@ export default function SecretariaPage() {
       }
 
       // Procesar archivo si existe
-      let archivoBase64 = null
+      let archivoUrl = null
       if (formData.archivo) {
         try {
-          archivoBase64 = await new Promise<string>((resolve, reject) => {
-            const reader = new FileReader()
-            reader.onload = () => resolve(reader.result as string)
-            reader.onerror = reject
-            reader.readAsDataURL(formData.archivo!)
-          })
+          // Subir archivo a Supabase Storage
+          const uploadResult = await uploadFileToSupabase(
+            formData.archivo,
+            'satje-files',
+            'actividades'
+          )
+          
+          if (!uploadResult.success) {
+            alert(`Error al subir archivo: ${uploadResult.error}`)
+            setIsSubmitting(false)
+            return
+          }
+          
+          archivoUrl = uploadResult.url
         } catch (error) {
           console.error('Error al procesar archivo:', error)
           alert('Error al procesar el archivo. Intente nuevamente.')
@@ -216,7 +221,7 @@ export default function SecretariaPage() {
         tipo: 'razon' as const,
         titulo: formData.titulo,
         contenido: formData.contenido,
-        archivo_url: archivoBase64,
+        archivo_url: archivoUrl,
         creado_por: user?.name || 'Secretario del Sistema',
         metadata: {
           tipo_actuacion: formData.tipo_actuacion,
