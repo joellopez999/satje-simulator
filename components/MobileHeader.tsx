@@ -1,15 +1,12 @@
 'use client'
 
-import { useState } from 'react'
 import { Menu, Scale } from 'lucide-react'
-import { useUser } from '@/app/providers'
 
 interface MobileHeaderProps {
   onMenuClick: () => void
 }
 
 export default function MobileHeader({ onMenuClick }: MobileHeaderProps) {
-  const { user } = useUser()
 
   return (
     <div className="lg:hidden bg-white border-b border-gray-200 px-4 py-3 flex items-center justify-between">
