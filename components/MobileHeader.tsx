@@ -9,11 +9,11 @@ interface MobileHeaderProps {
 export default function MobileHeader({ onMenuClick }: MobileHeaderProps) {
 
   return (
-    <div className="lg:hidden bg-white border-b border-gray-200 px-4 py-3 flex items-center justify-between">
+    <div className="bg-white border-b border-gray-200 px-4 py-3 flex items-center justify-between z-50 relative">
       {/* Logo */}
       <div className="flex items-center gap-2">
-        <Scale className="h-6 w-6 text-primary-600" />
-        <span className="font-bold text-gray-900">SATJE</span>
+        <Scale className="h-6 w-6 text-blue-600" />
+        <span className="font-bold text-gray-900">SATJE Simulator</span>
       </div>
 
       {/* Menú hamburguesa */}
