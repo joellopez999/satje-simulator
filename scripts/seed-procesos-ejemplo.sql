@@ -95,21 +95,21 @@ INSERT INTO expedientes (
     estado
 ) VALUES
 (
-    'exp-aaaa-aaaa-aaaa-aaaaaaaaaaaa',
+    'aaaaaaaa-bbbb-cccc-dddd-aaaaaaaaaaaa',
     'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa',
     1,
     'primera',
     'activo'
 ),
 (
-    'exp-bbbb-bbbb-bbbb-bbbbbbbbbbbb',
+    'bbbbbbbb-cccc-dddd-eeee-bbbbbbbbbbbb',
     'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb',
     1,
     'primera',
     'activo'
 ),
 (
-    'exp-cccc-cccc-cccc-cccccccccccc',
+    'cccccccc-dddd-eeee-ffff-cccccccccccc',
     'cccccccc-cccc-cccc-cccc-cccccccccccc',
     1,
     'primera',
@@ -126,7 +126,7 @@ INSERT INTO actividades (
     metadata
 ) VALUES
 (
-    'exp-aaaa-aaaa-aaaa-aaaaaaaaaaaa',
+    'aaaaaaaa-bbbb-cccc-dddd-aaaaaaaaaaaa',
     'escrito',
     'Demanda inicial',
     'Se presenta demanda por incumplimiento de contrato de construcción. El actor alega que la empresa constructora no cumplió con las especificaciones acordadas en el contrato, causando daños materiales y morales.',
@@ -134,7 +134,7 @@ INSERT INTO actividades (
     '{"tipo_actuacion": "demanda_inicial", "proceso_id": "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"}'
 ),
 (
-    'exp-bbbb-bbbb-bbbb-bbbbbbbbbbbb',
+    'bbbbbbbb-cccc-dddd-eeee-bbbbbbbbbbbb',
     'providencia',
     'Auto de admisión',
     'Se admite a trámite la demanda por cobro de deuda bancaria. Se ordena notificar al demandado y se fija plazo de 15 días para contestar la demanda.',
@@ -142,7 +142,7 @@ INSERT INTO actividades (
     '{"tipo_actuacion": "auto_admision", "proceso_id": "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb"}'
 ),
 (
-    'exp-cccc-cccc-cccc-cccccccccccc',
+    'cccccccc-dddd-eeee-ffff-cccccccccccc',
     'razon',
     'Actuación de secretaría',
     'Se recibe la demanda y se procede a su revisión. Se verifica que cumple con todos los requisitos legales. Se ordena su admisión a trámite.',
@@ -163,9 +163,9 @@ INSERT INTO solicitudes_secretaria (
     solicitado_por
 ) VALUES
 (
-    'sol-aaaa-aaaa-aaaa-aaaaaaaaaaaa',
+    'aaaaaaaa-eeee-ffff-gggg-aaaaaaaaaaaa',
     'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa',
-    'exp-aaaa-aaaa-aaaa-aaaaaaaaaaaa',
+    'aaaaaaaa-bbbb-cccc-dddd-aaaaaaaaaaaa',
     '11111111-1111-1111-1111-111111111111',
     'Solicitud de notificación',
     'Se solicita notificar al demandado sobre la admisión de la demanda y el plazo para contestar.',
@@ -174,9 +174,9 @@ INSERT INTO solicitudes_secretaria (
     '11111111-1111-1111-1111-111111111111'
 ),
 (
-    'sol-bbbb-bbbb-bbbb-bbbbbbbbbbbb',
+    'bbbbbbbb-ffff-gggg-hhhh-bbbbbbbbbbbb',
     'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb',
-    'exp-bbbb-bbbb-bbbb-bbbbbbbbbbbb',
+    'bbbbbbbb-cccc-dddd-eeee-bbbbbbbbbbbb',
     '11111111-1111-1111-1111-111111111111',
     'Solicitud de citación a audiencia',
     'Se solicita citar a las partes a la audiencia de conciliación prevista para el próximo mes.',
@@ -185,9 +185,9 @@ INSERT INTO solicitudes_secretaria (
     '11111111-1111-1111-1111-111111111111'
 ),
 (
-    'sol-cccc-cccc-cccc-cccccccccccc',
+    'cccccccc-gggg-hhhh-iiii-cccccccccccc',
     'cccccccc-cccc-cccc-cccc-cccccccccccc',
-    'exp-cccc-cccc-cccc-cccccccccccc',
+    'cccccccc-dddd-eeee-ffff-cccccccccccc',
     '11111111-1111-1111-1111-111111111111',
     'Solicitud de informe técnico',
     'Se solicita un informe técnico sobre las condiciones de la obra en cuestión para fundamentar la demanda.',
