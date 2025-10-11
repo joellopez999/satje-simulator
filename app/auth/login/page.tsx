@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import { Scale, Eye, EyeOff, LogIn, Settings, User, Briefcase } from 'lucide-react'
 import { useUser } from '@/app/providers'
 import { validatePassword, getUserPassword } from '@/lib/password-utils'
+import '@/lib/debug-auth'
 
 export default function LoginPage() {
   const router = useRouter()
@@ -16,6 +17,7 @@ export default function LoginPage() {
     password: ''
   })
   const [autoFilled, setAutoFilled] = useState(false)
+  const [showDebug, setShowDebug] = useState(false)
 
   // Usuarios de prueba para desarrollo
   const testUsers = [
@@ -368,6 +370,54 @@ export default function LoginPage() {
             </div>
           </div>
         </div>
+      </div>
+
+      {/* Panel de Debugging */}
+      <div className="mt-8 p-4 bg-gray-100 rounded-lg">
+        <button
+          onClick={() => setShowDebug(!showDebug)}
+          className="text-sm text-gray-600 hover:text-gray-800"
+        >
+          🔧 {showDebug ? 'Ocultar' : 'Mostrar'} Debug
+        </button>
+        
+        {showDebug && (
+          <div className="mt-4 space-y-2">
+            <div className="text-xs text-gray-500">
+              <strong>Debug Auth:</strong> Abre la consola del navegador (F12) y ejecuta:
+            </div>
+            <div className="text-xs font-mono bg-gray-200 p-2 rounded">
+              debugAuth.checkLocalStorage()<br/>
+              debugAuth.checkUsers()<br/>
+              debugAuth.initTestUsers()<br/>
+              debugAuth.testLogin("admin@satje.com", "admin123")
+            </div>
+            <div className="flex gap-2">
+              <button
+                onClick={() => {
+                  if (typeof window !== 'undefined' && (window as any).debugAuth) {
+                    (window as any).debugAuth.initTestUsers()
+                    alert('Usuarios de prueba inicializados')
+                  }
+                }}
+                className="text-xs bg-blue-500 text-white px-2 py-1 rounded"
+              >
+                Inicializar Usuarios
+              </button>
+              <button
+                onClick={() => {
+                  if (typeof window !== 'undefined' && (window as any).debugAuth) {
+                    (window as any).debugAuth.clearAuth()
+                    alert('Datos de autenticación limpiados')
+                  }
+                }}
+                className="text-xs bg-red-500 text-white px-2 py-1 rounded"
+              >
+                Limpiar Datos
+              </button>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   )
