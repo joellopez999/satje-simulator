@@ -224,3 +224,20 @@ CREATE POLICY "Users can view actividades of accessible expedientes" ON activida
             WHERE expedientes.id = actividades.expediente_id
         )
     );
+
+-- Tabla de solicitudes de secretaría
+CREATE TABLE solicitudes_secretaria (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    proceso_id UUID REFERENCES procesos(id) ON DELETE CASCADE,
+    expediente_id UUID REFERENCES expedientes(id) ON DELETE CASCADE,
+    juez_id UUID REFERENCES users(id),
+    titulo VARCHAR(255) NOT NULL,
+    instrucciones TEXT NOT NULL,
+    estado VARCHAR(50) DEFAULT 'pendiente' CHECK (estado IN ('pendiente', 'completada', 'cancelada')),
+    fecha_solicitud TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    fecha_completada TIMESTAMP WITH TIME ZONE,
+    completada_por UUID REFERENCES users(id),
+    solicitado_por UUID REFERENCES users(id),
+    actividad_creada_id UUID REFERENCES actividades(id),
+    metadata JSONB
+);

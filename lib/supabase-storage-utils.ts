@@ -222,3 +222,137 @@ export const deleteActividad = async (id: string) => {
     }
   }
 }
+
+// Funciones para manejar procesos en Supabase
+export interface ProcesoData {
+  numero_causa: string
+  actor: string
+  cedula_actor?: string
+  correo_actor?: string
+  abogado_actor?: string
+  correo_abogado_actor?: string
+  demandado: string
+  cedula_demandado?: string
+  correo_demandado?: string
+  abogado_demandado?: string
+  correo_abogado_demandado?: string
+  materia: string
+  asunto: string
+  lugar: string
+  juez_id?: string
+  estado?: 'activo' | 'acumulado' | 'archivado' | 'concluido'
+  acumulado_a?: string
+  es_acumulado?: boolean
+}
+
+export const createProceso = async (procesoData: ProcesoData) => {
+  try {
+    const { data, error } = await supabase
+      .from('procesos')
+      .insert([procesoData])
+      .select()
+
+    if (error) {
+      console.error('Error creating proceso:', error)
+      return { success: false, error: error.message }
+    }
+
+    return { success: true, data: data[0] }
+  } catch (error) {
+    console.error('Error in createProceso:', error)
+    return { 
+      success: false, 
+      error: error instanceof Error ? error.message : 'Error desconocido' 
+    }
+  }
+}
+
+export const getProcesos = async () => {
+  try {
+    const { data, error } = await supabase
+      .from('procesos')
+      .select('*')
+      .order('fecha_creacion', { ascending: false })
+
+    if (error) {
+      console.error('Error fetching procesos:', error)
+      return { success: false, error: error.message }
+    }
+
+    return { success: true, data }
+  } catch (error) {
+    console.error('Error in getProcesos:', error)
+    return { 
+      success: false, 
+      error: error instanceof Error ? error.message : 'Error desconocido' 
+    }
+  }
+}
+
+export const getProcesoById = async (id: string) => {
+  try {
+    const { data, error } = await supabase
+      .from('procesos')
+      .select('*')
+      .eq('id', id)
+      .single()
+
+    if (error) {
+      console.error('Error fetching proceso:', error)
+      return { success: false, error: error.message }
+    }
+
+    return { success: true, data }
+  } catch (error) {
+    console.error('Error in getProcesoById:', error)
+    return { 
+      success: false, 
+      error: error instanceof Error ? error.message : 'Error desconocido' 
+    }
+  }
+}
+
+export const updateProceso = async (id: string, updates: Partial<ProcesoData>) => {
+  try {
+    const { data, error } = await supabase
+      .from('procesos')
+      .update(updates)
+      .eq('id', id)
+      .select()
+
+    if (error) {
+      console.error('Error updating proceso:', error)
+      return { success: false, error: error.message }
+    }
+
+    return { success: true, data: data[0] }
+  } catch (error) {
+    console.error('Error in updateProceso:', error)
+    return { 
+      success: false, 
+      error: error instanceof Error ? error.message : 'Error desconocido' 
+    }
+  }
+}
+
+export const deleteProceso = async (id: string) => {
+  try {
+    const { error } = await supabase
+      .from('procesos')
+      .delete()
+      .eq('id', id)
+
+    if (error) {
+      console.error('Error deleting proceso:', error)
+      return { success: false, error: error.message }
+    }
+
+    return { success: true }
+  } catch (error) {
+    console.error('Error in deleteProceso:', error)
+    return { 
+      success: false, 
+      error: error instanceof Error ? error.message : 'Error desconocido' 
+    }
+  }
+}
