@@ -20,6 +20,7 @@ import {
 import Sidebar from '@/components/Sidebar'
 import MobileHeader from '@/components/MobileHeader'
 import { useUser } from '@/app/providers'
+import { createActividad, uploadFileToSupabase, validateFile } from '@/lib/supabase-storage-utils'
 
 export default function BuzonSecretariaPage() {
   const { user } = useUser()
@@ -103,101 +104,96 @@ export default function BuzonSecretariaPage() {
     }
   }
 
-  const handleSubmitActividad = async (e: React.FormEvent) => {
+    const handleSubmitActividad = async (e: React.FormEvent) => {
     e.preventDefault()
     
-    if (!confirm(`¿Está seguro de que desea crear esta actividad de secretaría?\n\nTipo: ${actividadData.tipo_actuacion}\nTítulo: ${actividadData.titulo}\n\nEsta acción no se puede deshacer.`)) {
+    if (!confirm(`¿Está seguro de que desea crear esta actividad de secretaría?
+
+Tipo: ${actividadData.tipo_actuacion}
+Título: ${actividadData.titulo}
+
+Esta acción no se puede deshacer.`)) {
       return
     }
     
     setIsSubmitting(true)
 
     try {
+      let archivoUrl = null
+      
       // Procesar archivo si existe
-      let archivoBase64 = null
       if (actividadData.archivo) {
-        try {
-          archivoBase64 = await new Promise<string>((resolve, reject) => {
-            const reader = new FileReader()
-            reader.onload = () => resolve(reader.result as string)
-            reader.onerror = reject
-            reader.readAsDataURL(actividadData.archivo!)
-          })
-        } catch (error) {
-          console.error('Error al procesar archivo:', error)
-          alert('Error al procesar el archivo. Intente nuevamente.')
+        // Validar archivo
+        const validation = validateFile(actividadData.archivo, {
+          maxSize: 10 * 1024 * 1024, // 10MB
+          allowedTypes: ['application/pdf', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessor']
+        })
+        
+        if (!validation.valid) {
+          alert(validation.error)
           setIsSubmitting(false)
           return
         }
+
+        // Subir archivo a Supabase Storage
+        const uploadResult = await uploadFileToSupabase(actividadData.archivo, 'satje-files', 'actividades')
+        
+        if (!uploadResult.success) {
+          alert(`Error al subir archivo: ${uploadResult.error}`)
+          setIsSubmitting(false)
+          return
+        }
+        
+        archivoUrl = uploadResult.url
       }
 
-      // Crear la actividad de secretaría
-      const newActividad = {
-        id: `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+      // Crear actividad en Supabase
+      const actividadData_supabase = {
         expediente_id: selectedSolicitud.expediente_id,
-        tipo: 'razon',
+        tipo: 'razon' as const,
         titulo: actividadData.titulo,
         contenido: actividadData.contenido,
-        fecha_creacion: new Date().toISOString(),
-        creado_por: user?.name || 'Secretario del Sistema',
-        archivo_url: archivoBase64,
+        archivo_url: archivoUrl,
+        creado_por: user?.id || 'sistema',
         metadata: {
           tipo_actuacion: actividadData.tipo_actuacion,
           proceso_id: selectedSolicitud.proceso_id,
           solicitud_id: selectedSolicitud.id,
           usuario_creador: {
-            id: user?.id || 'secretario-sistema',
-            nombre: user?.name || 'Secretario del Sistema',
-            email: user?.email || 'secretario@satje.ec',
-            rol: user?.role || 'secretario'
-          },
-          archivo_info: actividadData.archivo ? {
-            nombre: actividadData.archivo.name,
-            tamaño: actividadData.archivo.size,
-            tipo: actividadData.archivo.type,
-            fecha_subida: new Date().toISOString()
-          } : null
+            id: user?.id || 'sistema',
+            name: user?.name || 'Secretario del Sistema',
+            role: user?.role || 'secretario'
+          }
         }
       }
 
-      // Obtener procesos existentes
-      const allProcesses = JSON.parse(localStorage.getItem('satje_processes') || '[]')
-      const processIndex = allProcesses.findIndex((p: any) => p.id === selectedSolicitud.proceso_id)
+      const result = await createActividad(actividadData_supabase)
       
-      if (processIndex !== -1) {
-        const expedienteIndex = allProcesses[processIndex].expedientes?.findIndex((e: any) => e.id === selectedSolicitud.expediente_id)
-        
-        if (expedienteIndex !== -1) {
-          // Agregar la actividad al expediente
-          allProcesses[processIndex].expedientes[expedienteIndex].actividades.push(newActividad)
-          
-          // Guardar cambios
-          localStorage.setItem('satje_processes', JSON.stringify(allProcesses))
-          
-          // Marcar la solicitud como completada
-          const updatedSolicitudes = solicitudes.map(solicitud => {
-            if (solicitud.id === selectedSolicitud.id) {
-              return {
-                ...solicitud,
-                estado: 'completada',
-                fecha_completada: new Date().toISOString(),
-                completada_por: user?.name || 'Secretario del Sistema',
-                actividad_creada: newActividad.id
-              }
-            }
-            return solicitud
-          })
-
-          localStorage.setItem('satje_solicitudes_secretaria', JSON.stringify(updatedSolicitudes))
-          setSolicitudes(updatedSolicitudes)
-        }
+      if (!result.success) {
+        alert(`Error al crear actividad: ${result.error}`)
+        setIsSubmitting(false)
+        return
       }
 
-      alert('Actividad de secretaría creada exitosamente y solicitud marcada como completada')
-      
-      setIsSubmitting(false)
+      // Actualizar solicitudes locales (para mantener consistencia con localStorage)
+      const updatedSolicitudes = solicitudes.map(solicitud => {
+        if (solicitud.id === selectedSolicitud.id) {
+          return {
+            ...solicitud,
+            estado: 'completada',
+            fecha_completada: new Date().toISOString(),
+            completada_por: user?.name || 'Secretario del Sistema',
+            actividad_creada: result.data
+          }
+        }
+        return solicitud
+      })
+
+      localStorage.setItem('satje_solicitudes_secretaria', JSON.stringify(updatedSolicitudes))
+      setSolicitudes(updatedSolicitudes)
+
+      // Cerrar formulario y limpiar datos
       setShowActividadForm(false)
-      setSelectedSolicitud(null)
       setActividadData({
         tipo_actuacion: '',
         titulo: '',
@@ -205,9 +201,11 @@ export default function BuzonSecretariaPage() {
         archivo: null
       })
       
+      alert('Actividad de secretaría creada exitosamente en Supabase')
     } catch (error) {
       console.error('Error al crear actividad:', error)
-      alert('Error al crear la actividad')
+      alert('Error al crear la actividad. Intente nuevamente.')
+    } finally {
       setIsSubmitting(false)
     }
   }

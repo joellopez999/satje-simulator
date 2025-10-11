@@ -121,3 +121,104 @@ export const validateFile = (file: File, options: {
 
   return { valid: true }
 }
+
+// Funciones para manejar actividades en Supabase
+export interface ActividadData {
+  expediente_id: string
+  tipo: 'providencia' | 'razon' | 'escrito' | 'otros'
+  titulo: string
+  contenido?: string
+  archivo_url?: string
+  creado_por: string
+  metadata?: any
+}
+
+export const createActividad = async (actividadData: ActividadData) => {
+  try {
+    const { data, error } = await supabase
+      .from('actividades')
+      .insert([actividadData])
+      .select()
+
+    if (error) {
+      console.error('Error creating actividad:', error)
+      return { success: false, error: error.message }
+    }
+
+    return { success: true, data: data[0] }
+  } catch (error) {
+    console.error('Error in createActividad:', error)
+    return { 
+      success: false, 
+      error: error instanceof Error ? error.message : 'Error desconocido' 
+    }
+  }
+}
+
+export const getActividadesByExpediente = async (expediente_id: string) => {
+  try {
+    const { data, error } = await supabase
+      .from('actividades')
+      .select('*')
+      .eq('expediente_id', expediente_id)
+      .order('fecha_creacion', { ascending: false })
+
+    if (error) {
+      console.error('Error fetching actividades:', error)
+      return { success: false, error: error.message }
+    }
+
+    return { success: true, data }
+  } catch (error) {
+    console.error('Error in getActividadesByExpediente:', error)
+    return { 
+      success: false, 
+      error: error instanceof Error ? error.message : 'Error desconocido' 
+    }
+  }
+}
+
+export const updateActividad = async (id: string, updates: Partial<ActividadData>) => {
+  try {
+    const { data, error } = await supabase
+      .from('actividades')
+      .update(updates)
+      .eq('id', id)
+      .select()
+
+    if (error) {
+      console.error('Error updating actividad:', error)
+      return { success: false, error: error.message }
+    }
+
+    return { success: true, data: data[0] }
+  } catch (error) {
+    console.error('Error in updateActividad:', error)
+    return { 
+      success: false, 
+      error: error instanceof Error ? error.message : 'Error desconocido' 
+    }
+  }
+}
+
+export const deleteActividad = async (id: string) => {
+  try {
+    const { error } = await supabase
+      .from('actividades')
+      .delete()
+      .eq('id', id)
+
+    if (error) {
+      console.error('Error deleting actividad:', error)
+      return { success: false, error: error.message }
+    }
+
+    return { success: true }
+  } catch (error) {
+    console.error('Error in deleteActividad:', error)
+    return { 
+      success: false, 
+      error: error instanceof Error ? error.message : 'Error desconocido' 
+    }
+  }
+}
