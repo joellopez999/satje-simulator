@@ -18,6 +18,7 @@ import {
   X
 } from 'lucide-react'
 import Sidebar from '@/components/Sidebar'
+import MobileHeader from '@/components/MobileHeader'
 import { useUser } from '@/app/providers'
 
 export default function BuzonSecretariaPage() {
@@ -28,6 +29,7 @@ export default function BuzonSecretariaPage() {
   const [searchTerm, setSearchTerm] = useState('')
   const [showActividadForm, setShowActividadForm] = useState(false)
   const [selectedSolicitud, setSelectedSolicitud] = useState<any>(null)
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false)
   const [actividadData, setActividadData] = useState({
     tipo_actuacion: '',
     titulo: '',
@@ -241,10 +243,16 @@ export default function BuzonSecretariaPage() {
   if (isLoading) {
     return (
       <div className="min-h-screen bg-judicial-50">
-        <Sidebar />
-        <div className="lg:ml-64 p-8">
-          <div className="flex items-center justify-center h-64">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600"></div>
+        <MobileHeader onMenuClick={() => setIsSidebarOpen(true)} />
+        <div className="flex">
+          <Sidebar 
+            isOpen={isSidebarOpen} 
+            onClose={() => setIsSidebarOpen(false)} 
+          />
+          <div className="flex-1 lg:ml-64 p-8">
+            <div className="flex items-center justify-center h-64">
+              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600"></div>
+            </div>
           </div>
         </div>
       </div>
@@ -253,8 +261,13 @@ export default function BuzonSecretariaPage() {
 
   return (
     <div className="min-h-screen bg-judicial-50">
-      <Sidebar />
-      <div className="ml-64 p-8">
+      <MobileHeader onMenuClick={() => setIsSidebarOpen(true)} />
+      <div className="flex">
+        <Sidebar 
+          isOpen={isSidebarOpen} 
+          onClose={() => setIsSidebarOpen(false)} 
+        />
+        <div className="flex-1 lg:ml-64 p-8">
         {/* Header */}
         <div className="mb-8">
           <div className="flex items-center gap-3 mb-4">

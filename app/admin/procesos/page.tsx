@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import { FileText, Search, Plus, Edit, Trash2 } from 'lucide-react'
 import Sidebar from '@/components/Sidebar'
+import MobileHeader from '@/components/MobileHeader'
 import { getProcesses } from '@/lib/simple-storage'
 
 export default function AdminProcesosPage() {
@@ -11,6 +12,7 @@ export default function AdminProcesosPage() {
   const [searchTerm, setSearchTerm] = useState('')
   const [editingProcess, setEditingProcess] = useState<any>(null)
   const [showEditModal, setShowEditModal] = useState(false)
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false)
   const [editForm, setEditForm] = useState({
     actor: '',
     demandado: '',
@@ -96,9 +98,15 @@ export default function AdminProcesosPage() {
 
   return (
     <div className="min-h-screen bg-gray-50">
+      {/* Mobile Header */}
+      <MobileHeader onMenuClick={() => setIsSidebarOpen(true)} />
+      
       <div className="flex">
         {/* Sidebar */}
-        <Sidebar />
+        <Sidebar 
+          isOpen={isSidebarOpen} 
+          onClose={() => setIsSidebarOpen(false)} 
+        />
 
         {/* Main Content */}
         <div className="flex-1 lg:ml-64 p-8">

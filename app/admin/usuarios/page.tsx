@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import { Plus, Edit, Trash2, User, Mail, Shield, CheckCircle, XCircle, Eye, EyeOff, Key, RefreshCw } from 'lucide-react'
 import Sidebar from '@/components/Sidebar'
+import MobileHeader from '@/components/MobileHeader'
 import { useUser } from '@/app/providers'
 import { 
   generateTemporaryPassword, 
@@ -32,6 +33,7 @@ export default function UsuariosPage() {
   const [editingUser, setEditingUser] = useState<User | null>(null)
   const [selectedUser, setSelectedUser] = useState<User | null>(null)
   const [showPasswords, setShowPasswords] = useState<{[key: string]: boolean}>({})
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false)
   const [formData, setFormData] = useState({
     name: '',
     email: '',
@@ -357,9 +359,15 @@ export default function UsuariosPage() {
 
   return (
     <div className="min-h-screen bg-gray-50">
+      {/* Mobile Header */}
+      <MobileHeader onMenuClick={() => setIsSidebarOpen(true)} />
+      
       <div className="flex">
         {/* Sidebar */}
-        <Sidebar />
+        <Sidebar 
+          isOpen={isSidebarOpen} 
+          onClose={() => setIsSidebarOpen(false)} 
+        />
 
         {/* Main Content */}
         <div className="flex-1 lg:ml-64 p-8">

@@ -16,6 +16,7 @@ export default function EscritosPage() {
   const [showCreateForm, setShowCreateForm] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [searchResults, setSearchResults] = useState<any[]>([])
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false)
   const [escritoData, setEscritoData] = useState({
     titulo: '',
     tipo_petitorio: '',
@@ -187,8 +188,14 @@ export default function EscritosPage() {
 
   return (
     <div className="min-h-screen bg-judicial-50">
+      {/* Mobile Header */}
+      <MobileHeader onMenuClick={() => setIsSidebarOpen(true)} />
+      
       <div className="flex">
-        <Sidebar />
+        <Sidebar 
+          isOpen={isSidebarOpen} 
+          onClose={() => setIsSidebarOpen(false)} 
+        />
         
         <div className="flex-1 lg:ml-64">
           <div className="p-8">
