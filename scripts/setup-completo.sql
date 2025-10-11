@@ -262,7 +262,7 @@ INSERT INTO solicitudes_secretaria (
     solicitado_por
 ) VALUES
 (
-    'aaaaaaaa-eeee-ffff-gggg-aaaaaaaaaaaa',
+    'aaaaaaaa-eeee-ffff-1111-aaaaaaaaaaaa',
     'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa',
     'aaaaaaaa-bbbb-cccc-dddd-aaaaaaaaaaaa',
     '11111111-1111-1111-1111-111111111111',
@@ -273,7 +273,7 @@ INSERT INTO solicitudes_secretaria (
     '11111111-1111-1111-1111-111111111111'
 ),
 (
-    'bbbbbbbb-ffff-gggg-hhhh-bbbbbbbbbbbb',
+    'bbbbbbbb-ffff-2222-3333-bbbbbbbbbbbb',
     'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb',
     'bbbbbbbb-cccc-dddd-eeee-bbbbbbbbbbbb',
     '11111111-1111-1111-1111-111111111111',
@@ -284,7 +284,7 @@ INSERT INTO solicitudes_secretaria (
     '11111111-1111-1111-1111-111111111111'
 ),
 (
-    'cccccccc-gggg-hhhh-iiii-cccccccccccc',
+    'cccccccc-4444-5555-6666-cccccccccccc',
     'cccccccc-cccc-cccc-cccc-cccccccccccc',
     'cccccccc-dddd-eeee-ffff-cccccccccccc',
     '11111111-1111-1111-1111-111111111111',
