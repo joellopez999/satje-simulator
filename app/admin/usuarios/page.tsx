@@ -362,7 +362,7 @@ export default function UsuariosPage() {
         <Sidebar />
 
         {/* Main Content */}
-        <div className="flex-1 ml-64 p-8">
+        <div className="flex-1 lg:ml-64 p-8">
           <div className="max-w-7xl mx-auto">
             {/* Header */}
             <div className="mb-8">

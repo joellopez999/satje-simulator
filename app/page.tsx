@@ -121,7 +121,7 @@ export default function HomePage() {
         )}
 
         {/* Main Content */}
-        <div className={`flex-1 ${user ? 'ml-64' : ''} flex items-center justify-center p-4 lg:p-8`}>
+        <div className={`flex-1 ${user ? 'lg:ml-64' : ''} flex items-center justify-center p-4 lg:p-8`}>
           <div className="max-w-4xl w-full">
             {/* Header */}
             <div className="mb-8 text-center">

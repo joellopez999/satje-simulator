@@ -402,7 +402,7 @@ export default function ProvidenciasPage() {
       <div className="flex">
         <Sidebar />
         
-        <div className="flex-1 ml-64">
+        <div className="flex-1 lg:ml-64">
           <div className="p-8">
             {/* Header */}
             <div className="mb-8">

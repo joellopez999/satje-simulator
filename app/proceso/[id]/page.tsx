@@ -189,7 +189,7 @@ export default function ProcesoDetailPage() {
             isOpen={isSidebarOpen} 
             onClose={() => setIsSidebarOpen(false)} 
           />
-          <div className="flex-1 ml-64 p-4 lg:p-8">
+          <div className="flex-1 lg:ml-64 p-4 lg:p-8">
             <div className="max-w-4xl mx-auto">
               <div className="text-center">
                 <AlertCircle className="h-16 w-16 text-red-500 mx-auto mb-4" />
@@ -223,7 +223,7 @@ export default function ProcesoDetailPage() {
           onClose={() => setIsSidebarOpen(false)} 
         />
         
-        <div className="flex-1 ml-64 p-4 lg:p-8">
+        <div className="flex-1 lg:ml-64 p-4 lg:p-8">
           <div className="max-w-6xl mx-auto">
             {/* Header */}
             <div className="mb-8">
