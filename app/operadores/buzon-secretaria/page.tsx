@@ -792,6 +792,7 @@ export default function BuzonSecretariaPage() {
             </div>
           </div>
         )}
+        </div>
       </div>
     </div>
   )
