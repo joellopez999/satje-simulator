@@ -325,9 +325,10 @@ export default function BuzonSecretariaPage() {
         </div>
 
         {/* Filtros y Búsqueda */}
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 mb-8">
-          <div className="flex flex-col md:flex-row gap-4">
-            <div className="flex-1">
+        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 mb-6">
+          <div className="space-y-4">
+            {/* Barra de búsqueda */}
+            <div>
               <input
                 type="text"
                 placeholder="Buscar por número de causa, título o instrucciones..."
@@ -336,52 +337,61 @@ export default function BuzonSecretariaPage() {
                 className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent"
               />
             </div>
-            <div className="flex gap-2">
-              <button
-                onClick={() => setFilter('todas')}
-                className={`px-4 py-2 rounded-lg font-medium transition-colors ${
-                  filter === 'todas' 
-                    ? 'bg-primary-600 text-white' 
-                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                }`}
-              >
-                Todas
-              </button>
-              <button
-                onClick={() => setFilter('pendientes')}
-                className={`px-4 py-2 rounded-lg font-medium transition-colors ${
-                  filter === 'pendientes' 
-                    ? 'bg-primary-600 text-white' 
-                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                }`}
-              >
-                Pendientes
-              </button>
-              <button
-                onClick={() => setFilter('completadas')}
-                className={`px-4 py-2 rounded-lg font-medium transition-colors ${
-                  filter === 'completadas' 
-                    ? 'bg-primary-600 text-white' 
-                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                }`}
-              >
-                Completadas
-              </button>
+            
+            {/* Filtros y botones en filas separadas */}
+            <div className="flex flex-col sm:flex-row gap-3">
+              {/* Filtros */}
+              <div className="flex flex-wrap gap-2">
+                <button
+                  onClick={() => setFilter('todas')}
+                  className={`px-3 py-2 rounded-lg font-medium transition-colors text-sm ${
+                    filter === 'todas' 
+                      ? 'bg-primary-600 text-white' 
+                      : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                  }`}
+                >
+                  Todas
+                </button>
+                <button
+                  onClick={() => setFilter('pendientes')}
+                  className={`px-3 py-2 rounded-lg font-medium transition-colors text-sm ${
+                    filter === 'pendientes' 
+                      ? 'bg-primary-600 text-white' 
+                      : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                  }`}
+                >
+                  Pendientes
+                </button>
+                <button
+                  onClick={() => setFilter('completadas')}
+                  className={`px-3 py-2 rounded-lg font-medium transition-colors text-sm ${
+                    filter === 'completadas' 
+                      ? 'bg-primary-600 text-white' 
+                      : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                  }`}
+                >
+                  Completadas
+                </button>
+              </div>
+              
+              {/* Botones de acción */}
+              <div className="flex flex-wrap gap-2">
+                <button
+                  onClick={loadSolicitudes}
+                  className="px-3 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-2 text-sm"
+                >
+                  <RefreshCw className="h-4 w-4" />
+                  Actualizar
+                </button>
+                <button
+                  onClick={() => setShowHistoric(!showHistoric)}
+                  className="px-3 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors flex items-center gap-2 text-sm"
+                >
+                  <Calendar className="h-4 w-4" />
+                  {showHistoric ? 'Recientes' : 'Histórico'}
+                </button>
+              </div>
             </div>
-            <button
-              onClick={loadSolicitudes}
-              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-2"
-            >
-              <RefreshCw className="h-4 w-4" />
-              Actualizar
-            </button>
-            <button
-              onClick={() => setShowHistoric(!showHistoric)}
-              className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors flex items-center gap-2"
-            >
-              <Calendar className="h-4 w-4" />
-              {showHistoric ? 'Ver Recientes' : 'Ver Histórico'}
-            </button>
           </div>
         </div>
 
@@ -454,30 +464,30 @@ export default function BuzonSecretariaPage() {
                   </div>
                 )}
 
-                <div className="flex gap-3">
+                <div className="flex flex-wrap gap-2">
                   <button
                     onClick={() => window.open(`/proceso/${solicitud.proceso_id}`, '_blank')}
-                    className="bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-4 rounded-lg transition-colors duration-200 text-sm flex items-center gap-2"
+                    className="bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-3 rounded-lg transition-colors duration-200 text-sm flex items-center gap-2 flex-1 min-w-0"
                   >
                     <Eye className="h-4 w-4" />
-                    Ver Expediente
+                    <span className="truncate">Ver Expediente</span>
                   </button>
                   
                   {solicitud.estado === 'pendiente' && (
                     <>
                       <button
                         onClick={() => handleCrearActividad(solicitud)}
-                        className="bg-purple-600 hover:bg-purple-700 text-white font-medium py-2 px-4 rounded-lg transition-colors duration-200 text-sm flex items-center gap-2"
+                        className="bg-purple-600 hover:bg-purple-700 text-white font-medium py-2 px-3 rounded-lg transition-colors duration-200 text-sm flex items-center gap-2 flex-1 min-w-0"
                       >
                         <Plus className="h-4 w-4" />
-                        Crear Actividad
+                        <span className="truncate">Crear Actividad</span>
                       </button>
                       <button
                         onClick={() => handleMarcarCompletada(solicitud.id)}
-                        className="bg-green-600 hover:bg-green-700 text-white font-medium py-2 px-4 rounded-lg transition-colors duration-200 text-sm flex items-center gap-2"
+                        className="bg-green-600 hover:bg-green-700 text-white font-medium py-2 px-3 rounded-lg transition-colors duration-200 text-sm flex items-center gap-2 flex-1 min-w-0"
                       >
                         <CheckSquare className="h-4 w-4" />
-                        Marcar Completada
+                        <span className="truncate">Marcar Completada</span>
                       </button>
                     </>
                   )}
@@ -552,13 +562,13 @@ export default function BuzonSecretariaPage() {
                       </p>
                     </div>
 
-                    <div className="flex gap-3">
+                    <div className="flex flex-wrap gap-2">
                       <button
                         onClick={() => window.open(`/proceso/${solicitud.proceso_id}`, '_blank')}
-                        className="bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-4 rounded-lg transition-colors duration-200 text-sm flex items-center gap-2"
+                        className="bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-3 rounded-lg transition-colors duration-200 text-sm flex items-center gap-2 flex-1 min-w-0"
                       >
                         <Eye className="h-4 w-4" />
-                        Ver Expediente
+                        <span className="truncate">Ver Expediente</span>
                       </button>
                     </div>
                   </div>
@@ -637,30 +647,30 @@ export default function BuzonSecretariaPage() {
                       </div>
                     )}
 
-                    <div className="flex gap-3">
+                    <div className="flex flex-wrap gap-2">
                       <button
                         onClick={() => window.open(`/proceso/${solicitud.proceso_id}`, '_blank')}
-                        className="bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-4 rounded-lg transition-colors duration-200 text-sm flex items-center gap-2"
+                        className="bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-3 rounded-lg transition-colors duration-200 text-sm flex items-center gap-2 flex-1 min-w-0"
                       >
                         <Eye className="h-4 w-4" />
-                        Ver Expediente
+                        <span className="truncate">Ver Expediente</span>
                       </button>
                       
                       {solicitud.estado === 'pendiente' && (
                         <>
                           <button
                             onClick={() => handleCrearActividad(solicitud)}
-                            className="bg-purple-600 hover:bg-purple-700 text-white font-medium py-2 px-4 rounded-lg transition-colors duration-200 text-sm flex items-center gap-2"
+                            className="bg-purple-600 hover:bg-purple-700 text-white font-medium py-2 px-3 rounded-lg transition-colors duration-200 text-sm flex items-center gap-2 flex-1 min-w-0"
                           >
                             <Plus className="h-4 w-4" />
-                            Crear Actividad
+                            <span className="truncate">Crear Actividad</span>
                           </button>
                           <button
                             onClick={() => handleMarcarCompletada(solicitud.id)}
-                            className="bg-green-600 hover:bg-green-700 text-white font-medium py-2 px-4 rounded-lg transition-colors duration-200 text-sm flex items-center gap-2"
+                            className="bg-green-600 hover:bg-green-700 text-white font-medium py-2 px-3 rounded-lg transition-colors duration-200 text-sm flex items-center gap-2 flex-1 min-w-0"
                           >
                             <CheckSquare className="h-4 w-4" />
-                            Marcar Completada
+                            <span className="truncate">Marcar Completada</span>
                           </button>
                         </>
                       )}
