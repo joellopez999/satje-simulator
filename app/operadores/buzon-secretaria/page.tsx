@@ -21,6 +21,7 @@ import Sidebar from '@/components/Sidebar'
 import MobileHeader from '@/components/MobileHeader'
 import { useUser } from '@/app/providers'
 import { createActividad, uploadFileToSupabase, validateFile } from '@/lib/supabase-storage-utils'
+import { notifySolicitudCompletada } from '@/lib/telegram-notifications'
 
 export default function BuzonSecretariaPage() {
   const { user } = useUser()
@@ -191,6 +192,20 @@ Esta acción no se puede deshacer.`)) {
 
       localStorage.setItem('satje_solicitudes_secretaria', JSON.stringify(updatedSolicitudes))
       setSolicitudes(updatedSolicitudes)
+
+      // Enviar notificación de Telegram
+      try {
+        await notifySolicitudCompletada({
+          titulo: selectedSolicitud.titulo,
+          usuario: user?.name || 'Secretario del Sistema',
+          proceso_id: selectedSolicitud.proceso_id
+        }, {
+          chatId: process.env.NEXT_PUBLIC_TELEGRAM_CHAT_ID || ''
+        })
+      } catch (error) {
+        console.error('Error enviando notificación de Telegram:', error)
+        // No mostrar error al usuario, solo log
+      }
 
       // Cerrar formulario y limpiar datos
       setShowActividadForm(false)
