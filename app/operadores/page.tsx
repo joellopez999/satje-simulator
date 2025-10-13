@@ -20,7 +20,6 @@ export default function OperadoresPage() {
     solicitar_secretaria: false,
     solicitud_secretaria: ''
   })
-  const [showHistoric, setShowHistoric] = useState(false)
 
   useEffect(() => {
     const loadProcesses = () => {
@@ -79,7 +78,7 @@ export default function OperadoresPage() {
     ) || []
   ).filter(Boolean)
 
-  // Generar escritos despachados (recientes o históricos según showHistoric)
+  // Generar escritos despachados recientemente (últimos 7 días)
   const escritosDespachados = processes.flatMap(process => 
     process.expedientes?.flatMap((expediente: any) => 
       expediente.actividades
@@ -87,7 +86,7 @@ export default function OperadoresPage() {
           actividad.tipo === 'escrito' && 
           actividad.despachado && 
           actividad.fecha_despacho &&
-          (showHistoric || (Date.now() - new Date(actividad.fecha_despacho).getTime()) < (7 * 24 * 60 * 60 * 1000))
+          (Date.now() - new Date(actividad.fecha_despacho).getTime()) < (7 * 24 * 60 * 60 * 1000)
         )
         ?.map((actividad: any) => ({
           id: actividad.id,
@@ -325,13 +324,6 @@ export default function OperadoresPage() {
                   <RefreshCw className="h-4 w-4" />
                   Actualizar
                 </button>
-                <button
-                  onClick={() => setShowHistoric(!showHistoric)}
-                  className="btn-primary flex items-center gap-2"
-                >
-                  <Calendar className="h-4 w-4" />
-                  {showHistoric ? 'Ver Recientes' : 'Ver Histórico'}
-                </button>
               </div>
               <p className="text-gray-600">
                 Gestione los escritos pendientes de despacho judicial
@@ -503,16 +495,12 @@ export default function OperadoresPage() {
               </div>
             </div>
 
-            {/* Escritos Despachados */}
+            {/* Escritos Despachados Recientemente */}
             {escritosDespachados.length > 0 && (
               <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden mt-8">
                 <div className="px-6 py-4 border-b border-gray-200">
-                  <h3 className="text-lg font-semibold text-gray-900">
-                    {showHistoric ? 'Histórico de Escritos Despachados' : 'Escritos Despachados Recientemente'}
-                  </h3>
-                  <p className="text-sm text-gray-600">
-                    {showHistoric ? 'Todos los escritos despachados' : 'Últimos 7 días'}
-                  </p>
+                  <h3 className="text-lg font-semibold text-gray-900">Escritos Despachados Recientemente</h3>
+                  <p className="text-sm text-gray-600">Últimos 7 días</p>
                 </div>
                 
                 <div className="divide-y divide-gray-200 overflow-x-auto">

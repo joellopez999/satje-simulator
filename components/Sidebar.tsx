@@ -84,7 +84,8 @@ export default function Sidebar({ isOpen = false, onClose }: SidebarProps) {
       items: [
         { name: 'Buzón de Despacho', href: '/operadores' },
         { name: 'Crear Providencias', href: '/operadores/providencias' },
-        { name: 'Gestión de Instancias', href: '/operadores/instancias' }
+        { name: 'Gestión de Instancias', href: '/operadores/instancias' },
+        { name: 'Historial', href: '/operadores/historial' }
       ]
     },
     {
