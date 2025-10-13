@@ -5,8 +5,11 @@ import { Save, X, FileText, User, Scale } from 'lucide-react'
 import Sidebar from '@/components/Sidebar'
 import MobileHeader from '@/components/MobileHeader'
 import { getProcesses } from '@/lib/simple-storage'
+import { notifyNuevoProceso } from '@/lib/telegram-notifications'
+import { useUser } from '@/app/providers'
 
 export default function CrearCausaPage() {
+  const { user } = useUser()
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [isSidebarOpen, setIsSidebarOpen] = useState(false)
   const [formData, setFormData] = useState({
@@ -105,6 +108,23 @@ export default function CrearCausaPage() {
       
       console.log('Proceso creado:', newProcess)
       alert(`Causa creada exitosamente con número: ${numeroCausa}`)
+      
+      // Enviar notificación de Telegram al juez
+      try {
+        await notifyNuevoProceso({
+          numero_causa: numeroCausa,
+          actor: formData.actor,
+          materia: formData.materia,
+          usuario: user?.name || 'Abogado',
+          proceso_id: newProcess.id
+        }, {
+          chatId: process.env.NEXT_PUBLIC_TELEGRAM_CHAT_ID || ''
+        })
+        console.log('Notificación de Telegram enviada al juez')
+      } catch (error) {
+        console.error('Error enviando notificación de Telegram:', error)
+        // No mostrar error al usuario, solo log
+      }
       
       // Limpiar formulario
       setFormData({
