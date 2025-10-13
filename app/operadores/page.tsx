@@ -79,7 +79,7 @@ export default function OperadoresPage() {
     ) || []
   ).filter(Boolean)
 
-  // Generar escritos despachados recientemente (últimos 7 días)
+  // Generar escritos despachados (recientes o históricos según showHistoric)
   const escritosDespachados = processes.flatMap(process => 
     process.expedientes?.flatMap((expediente: any) => 
       expediente.actividades
@@ -87,7 +87,7 @@ export default function OperadoresPage() {
           actividad.tipo === 'escrito' && 
           actividad.despachado && 
           actividad.fecha_despacho &&
-          (Date.now() - new Date(actividad.fecha_despacho).getTime()) < (7 * 24 * 60 * 60 * 1000)
+          (showHistoric || (Date.now() - new Date(actividad.fecha_despacho).getTime()) < (7 * 24 * 60 * 60 * 1000))
         )
         ?.map((actividad: any) => ({
           id: actividad.id,
@@ -396,9 +396,9 @@ export default function OperadoresPage() {
                 <h3 className="text-lg font-semibold text-gray-900">Escritos Pendientes de Despacho</h3>
               </div>
               
-              <div className="divide-y divide-gray-200">
+              <div className="divide-y divide-gray-200 overflow-x-auto">
                 {escritosPendientes.map((escrito) => (
-                  <div key={escrito.id} className="p-6 hover:bg-gray-50">
+                  <div key={escrito.id} className="p-6 hover:bg-gray-50 min-w-0">
                     <div className="flex items-start justify-between">
                       <div className="flex-1">
                         <div className="flex items-center gap-3 mb-2">
@@ -460,12 +460,12 @@ export default function OperadoresPage() {
                         </p>
                       </div>
                       
-                      <div className="ml-6 flex flex-col gap-2">
+                      <div className="ml-6 flex flex-col gap-2 min-w-0 flex-shrink-0">
                         <button 
                           onClick={() => alert(`Escrito: ${escrito.titulo}\nContenido: ${escrito.contenido}`)}
-                          className="bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-4 rounded-lg transition-colors duration-200 text-sm flex items-center gap-2"
+                          className="bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-3 rounded-lg transition-colors duration-200 text-xs flex items-center gap-1 whitespace-nowrap"
                         >
-                          <Eye className="h-4 w-4" />
+                          <Eye className="h-3 w-3" />
                           Ver Escrito
                         </button>
                         <button 
@@ -474,9 +474,9 @@ export default function OperadoresPage() {
                               handleCrearProvidencia(escrito)
                             }
                           }}
-                          className="bg-green-600 hover:bg-green-700 text-white font-medium py-2 px-4 rounded-lg transition-colors duration-200 text-sm flex items-center gap-2"
+                          className="bg-green-600 hover:bg-green-700 text-white font-medium py-2 px-3 rounded-lg transition-colors duration-200 text-xs flex items-center gap-1 whitespace-nowrap"
                         >
-                          <Plus className="h-4 w-4" />
+                          <Plus className="h-3 w-3" />
                           Crear Providencia
                         </button>
                         <button 
@@ -485,14 +485,14 @@ export default function OperadoresPage() {
                               handleMarcarDespachado(escrito)
                             }
                           }}
-                          className="bg-gray-600 hover:bg-gray-700 text-white font-medium py-2 px-4 rounded-lg transition-colors duration-200 text-sm flex items-center gap-2"
+                          className="bg-gray-600 hover:bg-gray-700 text-white font-medium py-2 px-3 rounded-lg transition-colors duration-200 text-xs flex items-center gap-1 whitespace-nowrap"
                         >
-                          <CheckSquare className="h-4 w-4" />
+                          <CheckSquare className="h-3 w-3" />
                           Marcar Despachado
                         </button>
                         <button 
                           onClick={() => window.open(`/proceso/${processes.find(p => p.numero_causa === escrito.numero_causa)?.id}`, '_blank')}
-                          className="bg-purple-600 hover:bg-purple-700 text-white font-medium py-2 px-4 rounded-lg transition-colors duration-200 text-sm"
+                          className="bg-purple-600 hover:bg-purple-700 text-white font-medium py-2 px-3 rounded-lg transition-colors duration-200 text-xs whitespace-nowrap"
                         >
                           Ver Expediente
                         </button>
@@ -503,17 +503,21 @@ export default function OperadoresPage() {
               </div>
             </div>
 
-            {/* Escritos Despachados Recientemente */}
+            {/* Escritos Despachados */}
             {escritosDespachados.length > 0 && (
               <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden mt-8">
                 <div className="px-6 py-4 border-b border-gray-200">
-                  <h3 className="text-lg font-semibold text-gray-900">Escritos Despachados Recientemente</h3>
-                  <p className="text-sm text-gray-600">Últimos 7 días</p>
+                  <h3 className="text-lg font-semibold text-gray-900">
+                    {showHistoric ? 'Histórico de Escritos Despachados' : 'Escritos Despachados Recientemente'}
+                  </h3>
+                  <p className="text-sm text-gray-600">
+                    {showHistoric ? 'Todos los escritos despachados' : 'Últimos 7 días'}
+                  </p>
                 </div>
                 
-                <div className="divide-y divide-gray-200">
+                <div className="divide-y divide-gray-200 overflow-x-auto">
                   {escritosDespachados.map((escrito) => (
-                    <div key={escrito.id} className="p-6 hover:bg-gray-50">
+                    <div key={escrito.id} className="p-6 hover:bg-gray-50 min-w-0">
                       <div className="flex justify-between items-start">
                         <div className="flex-1">
                           <div className="flex items-center gap-2 mb-2">
@@ -546,17 +550,17 @@ export default function OperadoresPage() {
                           </p>
                         </div>
                         
-                        <div className="ml-6 flex flex-col gap-2">
+                        <div className="ml-6 flex flex-col gap-2 min-w-0 flex-shrink-0">
                           <button 
                             onClick={() => alert(`Escrito: ${escrito.titulo}\nContenido: ${escrito.contenido}`)}
-                            className="btn-secondary text-sm flex items-center gap-2"
+                            className="btn-secondary text-xs flex items-center gap-1 whitespace-nowrap"
                           >
-                            <Eye className="h-4 w-4" />
+                            <Eye className="h-3 w-3" />
                             Ver Escrito
                           </button>
                           <button 
                             onClick={() => window.open(`/proceso/${processes.find(p => p.numero_causa === escrito.numero_causa)?.id}`, '_blank')}
-                            className="bg-purple-600 hover:bg-purple-700 text-white font-medium py-2 px-4 rounded-lg transition-colors duration-200 text-sm"
+                            className="bg-purple-600 hover:bg-purple-700 text-white font-medium py-2 px-3 rounded-lg transition-colors duration-200 text-xs whitespace-nowrap"
                           >
                             Ver Expediente
                           </button>
