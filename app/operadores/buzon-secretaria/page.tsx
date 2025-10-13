@@ -154,7 +154,7 @@ Esta acción no se puede deshacer.`)) {
         tipo: 'razon' as const,
         titulo: actividadData.titulo,
         contenido: actividadData.contenido,
-        archivo_url: archivoUrl,
+        archivo_url: archivoUrl || undefined,
         creado_por: user?.id || 'sistema',
         metadata: {
           tipo_actuacion: actividadData.tipo_actuacion,
