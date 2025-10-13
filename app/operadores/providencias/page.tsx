@@ -34,6 +34,7 @@ export default function ProvidenciasPage() {
   const [selectedExpedienteForAutonomous, setSelectedExpedienteForAutonomous] = useState<any>(null)
   const [selectedInstance, setSelectedInstance] = useState<string>('')
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false)
   
   const [formData, setFormData] = useState({
     titulo: '',
@@ -399,8 +400,14 @@ export default function ProvidenciasPage() {
 
   return (
     <div className="min-h-screen bg-judicial-50">
+      {/* Mobile Header */}
+      <MobileHeader onMenuClick={() => setIsSidebarOpen(true)} />
+      
       <div className="flex">
-        <Sidebar />
+        <Sidebar 
+          isOpen={isSidebarOpen} 
+          onClose={() => setIsSidebarOpen(false)} 
+        />
         
         <div className="flex-1 lg:ml-64">
           <div className="p-8">

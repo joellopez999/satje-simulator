@@ -16,6 +16,7 @@ import {
   Gavel
 } from 'lucide-react'
 import Sidebar from '@/components/Sidebar'
+import MobileHeader from '@/components/MobileHeader'
 import { getProcesses, createActivity } from '@/lib/simple-storage'
 
 export default function InstanciasPage() {
@@ -26,6 +27,7 @@ export default function InstanciasPage() {
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [processes, setProcesses] = useState<any[]>([])
   const [selectedInstance, setSelectedInstance] = useState<'segunda' | 'tercera'>('segunda')
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false)
   
   const [formData, setFormData] = useState({
     proceso_id: '',
@@ -268,8 +270,14 @@ export default function InstanciasPage() {
 
   return (
     <div className="min-h-screen bg-judicial-50">
+      {/* Mobile Header */}
+      <MobileHeader onMenuClick={() => setIsSidebarOpen(true)} />
+      
       <div className="flex">
-        <Sidebar />
+        <Sidebar 
+          isOpen={isSidebarOpen} 
+          onClose={() => setIsSidebarOpen(false)} 
+        />
         
         <div className="flex-1 lg:ml-64">
           <div className="p-8">
