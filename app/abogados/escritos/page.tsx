@@ -7,6 +7,7 @@ import MobileHeader from '@/components/MobileHeader'
 import { useUser } from '@/app/providers'
 import { getProcesses, searchProcesses } from '@/lib/storage'
 import { uploadFileToSupabase, validateFile } from '@/lib/supabase-storage-utils'
+import { notifyNuevaActividad } from '@/lib/telegram-notifications'
 
 export default function EscritosPage() {
   const { user } = useUser()
@@ -174,6 +175,23 @@ export default function EscritosPage() {
       
       console.log('Escrito guardado exitosamente:', nuevaActividad)
       alert(`${escritoData.tipo_petitorio} guardado exitosamente`)
+      
+      // Enviar notificación de Telegram al juez
+      try {
+        await notifyNuevaActividad({
+          titulo: escritoData.titulo,
+          contenido: escritoData.contenido,
+          usuario: user?.name || 'Abogado',
+          proceso_id: selectedProcess.id,
+          expediente_id: selectedExpediente.id
+        }, {
+          chatId: process.env.NEXT_PUBLIC_TELEGRAM_CHAT_ID || ''
+        })
+        console.log('Notificación de Telegram enviada al juez')
+      } catch (error) {
+        console.error('Error enviando notificación de Telegram:', error)
+        // No mostrar error al usuario, solo log
+      }
       
       setIsSubmitting(false)
       setShowCreateForm(false)
