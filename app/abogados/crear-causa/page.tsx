@@ -86,7 +86,7 @@ export default function CrearCausaPage() {
         asunto: formData.asunto,
         lugar: formData.lugar,
         juez_id: formData.juez_id,
-        estado: 'activo' as const,
+        estado: 'activo' as 'activo' | 'acumulado' | 'archivado' | 'concluido',
         fecha_creacion: new Date().toISOString(),
         fecha_actualizacion: new Date().toISOString(),
         es_acumulado: false,
