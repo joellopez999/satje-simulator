@@ -1,0 +1,29 @@
+'use client'
+
+import { Menu, Scale } from 'lucide-react'
+
+interface MobileHeaderProps {
+  onMenuClick: () => void
+}
+
+export default function MobileHeader({ onMenuClick }: MobileHeaderProps) {
+
+  return (
+    <div className="bg-white border-b border-gray-200 px-4 py-3 flex items-center justify-between z-50 relative">
+      {/* Logo */}
+      <div className="flex items-center gap-2">
+        <Scale className="h-6 w-6 text-blue-600" />
+        <span className="font-bold text-gray-900">SATJE Simulator</span>
+      </div>
+
+      {/* Menú hamburguesa */}
+      <button
+        onClick={onMenuClick}
+        className="p-2 rounded-md hover:bg-gray-100 transition-colors"
+        aria-label="Abrir menú"
+      >
+        <Menu className="h-6 w-6 text-gray-600" />
+      </button>
+    </div>
+  )
+}
