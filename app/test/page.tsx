@@ -15,9 +15,11 @@ export default function TestPage() {
     
     // Test básico del cliente
     try {
-      localStorage.setItem('test', 'working')
-      localStorage.removeItem('test')
-      setClientStatus('ready')
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('test', 'working')
+        localStorage.removeItem('test')
+        setClientStatus('ready')
+      }
     } catch (error) {
       setClientStatus('error')
     }
@@ -42,15 +44,15 @@ export default function TestPage() {
       },
       {
         name: 'LocalStorage',
-        status: 'ready',
-        message: 'Almacenamiento local disponible',
-        icon: '✅'
+        status: typeof window !== 'undefined' ? 'ready' : 'checking',
+        message: typeof window !== 'undefined' ? 'Almacenamiento local disponible' : 'Verificando...',
+        icon: typeof window !== 'undefined' ? '✅' : '⏳'
       },
       {
         name: 'Navegador',
-        status: 'ready',
-        message: `Navegador: ${navigator.userAgent.split(' ')[0]}`,
-        icon: '✅'
+        status: typeof window !== 'undefined' ? 'ready' : 'checking',
+        message: typeof window !== 'undefined' ? `Navegador: ${navigator.userAgent.split(' ')[0]}` : 'Verificando...',
+        icon: typeof window !== 'undefined' ? '✅' : '⏳'
       }
     ]
     setTestResults(tests)
@@ -199,15 +201,21 @@ export default function TestPage() {
             </div>
             <div>
               <span className="font-medium text-gray-700">User Agent:</span>
-              <span className="ml-2 text-gray-600">{navigator.userAgent.split(' ')[0]}</span>
+              <span className="ml-2 text-gray-600">
+                {typeof window !== 'undefined' ? navigator.userAgent.split(' ')[0] : 'N/A (SSR)'}
+              </span>
             </div>
             <div>
               <span className="font-medium text-gray-700">URL:</span>
-              <span className="ml-2 text-gray-600">{window.location.href}</span>
+              <span className="ml-2 text-gray-600">
+                {typeof window !== 'undefined' ? window.location.href : 'N/A (SSR)'}
+              </span>
             </div>
             <div>
               <span className="font-medium text-gray-700">Protocol:</span>
-              <span className="ml-2 text-gray-600">{window.location.protocol}</span>
+              <span className="ml-2 text-gray-600">
+                {typeof window !== 'undefined' ? window.location.protocol : 'N/A (SSR)'}
+              </span>
             </div>
           </div>
         </div>
