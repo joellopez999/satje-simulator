@@ -8,18 +8,20 @@ export default function TestPage() {
   const [serverStatus, setServerStatus] = useState<'checking' | 'online' | 'offline'>('checking')
   const [clientStatus, setClientStatus] = useState<'checking' | 'ready' | 'error'>('checking')
   const [testResults, setTestResults] = useState<any[]>([])
+  const [isClient, setIsClient] = useState(false)
 
   useEffect(() => {
+    // Marcar que estamos en el cliente
+    setIsClient(true)
+    
     // Test básico del servidor
     setServerStatus('online')
     
     // Test básico del cliente
     try {
-      if (typeof window !== 'undefined') {
-        localStorage.setItem('test', 'working')
-        localStorage.removeItem('test')
-        setClientStatus('ready')
-      }
+      localStorage.setItem('test', 'working')
+      localStorage.removeItem('test')
+      setClientStatus('ready')
     } catch (error) {
       setClientStatus('error')
     }
@@ -38,21 +40,21 @@ export default function TestPage() {
       },
       {
         name: 'Cliente React',
-        status: 'ready',
-        message: 'Cliente funcionando correctamente',
-        icon: '✅'
+        status: isClient ? 'ready' : 'checking',
+        message: isClient ? 'Cliente funcionando correctamente' : 'Verificando...',
+        icon: isClient ? '✅' : '⏳'
       },
       {
         name: 'LocalStorage',
-        status: typeof window !== 'undefined' ? 'ready' : 'checking',
-        message: typeof window !== 'undefined' ? 'Almacenamiento local disponible' : 'Verificando...',
-        icon: typeof window !== 'undefined' ? '✅' : '⏳'
+        status: isClient ? 'ready' : 'checking',
+        message: isClient ? 'Almacenamiento local disponible' : 'Verificando...',
+        icon: isClient ? '✅' : '⏳'
       },
       {
         name: 'Navegador',
-        status: typeof window !== 'undefined' ? 'ready' : 'checking',
-        message: typeof window !== 'undefined' ? `Navegador: ${navigator.userAgent.split(' ')[0]}` : 'Verificando...',
-        icon: typeof window !== 'undefined' ? '✅' : '⏳'
+        status: isClient ? 'ready' : 'checking',
+        message: isClient ? `Navegador: ${navigator.userAgent.split(' ')[0]}` : 'Verificando...',
+        icon: isClient ? '✅' : '⏳'
       }
     ]
     setTestResults(tests)
@@ -202,19 +204,19 @@ export default function TestPage() {
             <div>
               <span className="font-medium text-gray-700">User Agent:</span>
               <span className="ml-2 text-gray-600">
-                {typeof window !== 'undefined' ? navigator.userAgent.split(' ')[0] : 'N/A (SSR)'}
+                {isClient ? navigator.userAgent.split(' ')[0] : 'N/A (SSR)'}
               </span>
             </div>
             <div>
               <span className="font-medium text-gray-700">URL:</span>
               <span className="ml-2 text-gray-600">
-                {typeof window !== 'undefined' ? window.location.href : 'N/A (SSR)'}
+                {isClient ? window.location.href : 'N/A (SSR)'}
               </span>
             </div>
             <div>
               <span className="font-medium text-gray-700">Protocol:</span>
               <span className="ml-2 text-gray-600">
-                {typeof window !== 'undefined' ? window.location.protocol : 'N/A (SSR)'}
+                {isClient ? window.location.protocol : 'N/A (SSR)'}
               </span>
             </div>
           </div>
