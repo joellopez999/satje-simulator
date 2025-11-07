@@ -29,14 +29,27 @@ export default function EscritosPage() {
   // Búsqueda en tiempo real
   useEffect(() => {
     if (searchTerm.length >= 3) {
-      const results = searchProcesses({
+      const filters: any = {
         numero_causa: searchTerm
-      })
+      }
+      
+      // Si el usuario es abogado, filtrar solo sus causas
+      if (user?.role === 'abogado') {
+        if (user?.email) {
+          filters.abogado_email = user.email
+        }
+        // También buscar por nombre por si el email no coincide exactamente
+        if (user?.name) {
+          filters.abogado_name = user.name
+        }
+      }
+      
+      const results = searchProcesses(filters)
       setSearchResults(results)
     } else {
       setSearchResults([])
     }
-  }, [searchTerm])
+  }, [searchTerm, user])
 
   // Cerrar dropdown al hacer clic fuera o presionar Escape
   useEffect(() => {

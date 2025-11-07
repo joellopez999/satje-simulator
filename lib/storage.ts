@@ -305,6 +305,8 @@ export const searchProcesses = (filters: {
   fecha_hasta?: string
   juez_id?: string
   estado?: string
+  abogado_email?: string
+  abogado_name?: string
 }): Process[] => {
   let processes = getProcesses()
   
@@ -332,6 +334,23 @@ export const searchProcesses = (filters: {
   
   if (filters.juez_id) {
     processes = processes.filter(p => p.juez_id === filters.juez_id)
+  }
+  
+  // Filtro por abogado (por email o nombre)
+  if (filters.abogado_email || filters.abogado_name) {
+    processes = processes.filter(p => {
+      const emailMatch = filters.abogado_email ? (
+        p.correo_abogado_actor?.toLowerCase() === filters.abogado_email.toLowerCase() ||
+        p.correo_abogado_demandado?.toLowerCase() === filters.abogado_email.toLowerCase()
+      ) : true
+      
+      const nameMatch = filters.abogado_name ? (
+        p.abogado_actor?.toLowerCase().includes(filters.abogado_name.toLowerCase()) ||
+        p.abogado_demandado?.toLowerCase().includes(filters.abogado_name.toLowerCase())
+      ) : true
+      
+      return emailMatch || nameMatch
+    })
   }
   
   return processes.sort((a, b) => new Date(b.fecha_creacion).getTime() - new Date(a.fecha_creacion).getTime())
