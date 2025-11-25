@@ -4,7 +4,7 @@ import { useState } from 'react'
 import { Save, X, FileText, User, Scale } from 'lucide-react'
 import Sidebar from '@/components/Sidebar'
 import MobileHeader from '@/components/MobileHeader'
-import { getProcesses } from '@/lib/simple-storage'
+import { getProcesses, saveProcess } from '@/lib/storage'
 import { notifyNuevoProceso } from '@/lib/telegram-notifications'
 import { useUser } from '@/app/providers'
 
@@ -41,9 +41,9 @@ export default function CrearCausaPage() {
   ]
 
   const jueces = [
-    { id: 'juez1', name: 'Dr. Juan Pérez' },
-    { id: 'juez2', name: 'Dra. María García' },
-    { id: 'juez3', name: 'Dr. Carlos López' }
+    { id: '550e8400-e29b-41d4-a716-446655440001', name: 'Dr. Juan Pérez' },
+    { id: '550e8400-e29b-41d4-a716-446655440002', name: 'Dra. María García' },
+    { id: '550e8400-e29b-41d4-a716-446655440003', name: 'Dr. Joel López' }
   ]
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
@@ -53,24 +53,48 @@ export default function CrearCausaPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    
+
     // Confirmación de seguridad
     if (!confirm(`¿Está seguro de que desea crear este nuevo proceso?\n\nActor: ${formData.actor}\nDemandado: ${formData.demandado}\nAsunto: ${formData.asunto}\n\nEsta acción creará un nuevo proceso judicial.`)) {
       return
     }
-    
+
     setIsSubmitting(true)
 
     try {
-      // Generar número de causa automático
+      // Generar número de causa automático basado en el último número usado
       const currentYear = new Date().getFullYear()
-      const existingProcesses = getProcesses()
-      const nextNumber = String(existingProcesses.length + 1).padStart(5, '0')
-      const numeroCausa = `13999-${currentYear}-${nextNumber}`
+
+      // Usar API Route para obtener procesos
+      const processesResponse = await fetch('/api/processes/search')
+      if (!processesResponse.ok) throw new Error('Error fetching processes')
+      const existingProcesses = await processesResponse.json()
+
+      // Filtrar procesos del año actual y extraer el número secuencial
+      const currentYearProcesses = existingProcesses.filter((p: any) =>
+        p.numero_causa && p.numero_causa.includes(`-${currentYear}-`)
+      )
+
+      let nextNumber = 1
+      if (currentYearProcesses.length > 0) {
+        // Extraer todos los números secuenciales del año actual
+        const numbers = currentYearProcesses.map((p: any) => {
+          const match = p.numero_causa.match(/-(\d{5})$/)
+          return match ? parseInt(match[1], 10) : 0
+        })
+        // Obtener el máximo y sumar 1
+        nextNumber = Math.max(...numbers) + 1
+      }
+
+      const numeroCausa = `13999-${currentYear}-${String(nextNumber).padStart(5, '0')}`
+
+      // Generar UUIDs válidos
+      const processId = crypto.randomUUID()
+      const expedienteId = crypto.randomUUID()
 
       // Crear nuevo proceso
       const newProcess = {
-        id: `proc-${Date.now()}`,
+        id: processId,
         numero_causa: numeroCausa,
         actor: formData.actor,
         cedula_actor: formData.cedula_actor,
@@ -91,8 +115,8 @@ export default function CrearCausaPage() {
         fecha_actualizacion: new Date().toISOString(),
         es_acumulado: false,
         expedientes: [{
-          id: `exp-${Date.now()}`,
-          proceso_id: `proc-${Date.now()}`,
+          id: expedienteId,
+          proceso_id: processId,
           numero_expediente: 1,
           instancia: 'primera' as const,
           estado: 'activo' as const,
@@ -101,14 +125,24 @@ export default function CrearCausaPage() {
         }]
       }
 
-      // Guardar en localStorage
-      const allProcesses = getProcesses()
-      allProcesses.push(newProcess)
-      localStorage.setItem('satje_processes', JSON.stringify(allProcesses))
-      
-      console.log('Proceso creado:', newProcess)
+      // Guardar en Supabase usando API Route
+      const response = await fetch('/api/processes/create', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(newProcess),
+      })
+
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw new Error(errorData.error || 'Error al crear proceso')
+      }
+
+      const data = await response.json()
+      console.log('Proceso creado:', data)
       alert(`Causa creada exitosamente con número: ${numeroCausa}`)
-      
+
       // Enviar notificación de Telegram al juez
       try {
         await notifyNuevoProceso({
@@ -116,7 +150,7 @@ export default function CrearCausaPage() {
           actor: formData.actor,
           materia: formData.materia,
           usuario: user?.name || 'Abogado',
-          proceso_id: newProcess.id
+          proceso_id: processId
         }, {
           chatId: process.env.NEXT_PUBLIC_TELEGRAM_CHAT_ID || ''
         })
@@ -125,7 +159,7 @@ export default function CrearCausaPage() {
         console.error('Error enviando notificación de Telegram:', error)
         // No mostrar error al usuario, solo log
       }
-      
+
       // Limpiar formulario
       setFormData({
         actor: '',
@@ -145,7 +179,7 @@ export default function CrearCausaPage() {
       })
     } catch (error) {
       console.error('Error al crear causa:', error)
-      alert('Error al crear la causa')
+      alert('Error al crear la causa: ' + (error as Error).message)
     } finally {
       setIsSubmitting(false)
     }
@@ -155,12 +189,12 @@ export default function CrearCausaPage() {
     <div className="min-h-screen bg-gray-50">
       {/* Mobile Header */}
       <MobileHeader onMenuClick={() => setIsSidebarOpen(true)} />
-      
+
       <div className="flex">
         {/* Sidebar */}
-        <Sidebar 
-          isOpen={isSidebarOpen} 
-          onClose={() => setIsSidebarOpen(false)} 
+        <Sidebar
+          isOpen={isSidebarOpen}
+          onClose={() => setIsSidebarOpen(false)}
         />
 
         {/* Main Content */}
@@ -186,7 +220,7 @@ export default function CrearCausaPage() {
                   <User className="h-5 w-5 text-blue-600" />
                   <h3 className="text-lg font-semibold text-gray-900">Información del Actor</h3>
                 </div>
-                
+
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
                     <label htmlFor="actor" className="block text-sm font-medium text-gray-700 mb-1">
@@ -267,7 +301,7 @@ export default function CrearCausaPage() {
                   <User className="h-5 w-5 text-red-600" />
                   <h3 className="text-lg font-semibold text-gray-900">Información del Demandado</h3>
                 </div>
-                
+
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
                     <label htmlFor="demandado" className="block text-sm font-medium text-gray-700 mb-1">
@@ -348,7 +382,7 @@ export default function CrearCausaPage() {
                   <Scale className="h-5 w-5 text-green-600" />
                   <h3 className="text-lg font-semibold text-gray-900">Información del Proceso</h3>
                 </div>
-                
+
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
                     <label htmlFor="materia" className="block text-sm font-medium text-gray-700 mb-1">

@@ -2,14 +2,14 @@
 
 import { useState, useEffect } from 'react'
 import { useParams } from 'next/navigation'
-import { 
-  ArrowLeft, 
-  FileText, 
-  Scale, 
-  Users, 
+import {
+  ArrowLeft,
+  FileText,
+  Scale,
+  Users,
   Calendar,
-  Search, 
-  ChevronDown, 
+  Search,
+  ChevronDown,
   ChevronRight,
   Download,
   Eye,
@@ -22,7 +22,7 @@ import {
 } from 'lucide-react'
 import Sidebar from '@/components/Sidebar'
 import MobileHeader from '@/components/MobileHeader'
-import { getProcesses } from '@/lib/simple-storage'
+import { getProcesses } from '@/lib/storage'
 import { useUser } from '@/app/providers'
 
 export default function ProcesoDetailPage() {
@@ -37,30 +37,35 @@ export default function ProcesoDetailPage() {
   const { user } = useUser()
 
   useEffect(() => {
-    if (params.id) {
-      try {
-        const procesos = getProcesses()
-        const procesoEncontrado = procesos.find(p => p.id === params.id)
-        setProceso(procesoEncontrado)
-      } catch (error) {
-        console.error('Error loading process:', error)
-      } finally {
-        setIsLoading(false)
+    const loadProcess = async () => {
+      if (params.id) {
+        try {
+          const response = await fetch('/api/processes/search')
+          if (!response.ok) throw new Error('Error fetching processes')
+          const procesos = await response.json()
+          const procesoEncontrado = procesos.find((p: any) => p.id === params.id)
+          setProceso(procesoEncontrado)
+        } catch (error) {
+          console.error('Error loading process:', error)
+        } finally {
+          setIsLoading(false)
+        }
       }
     }
+    loadProcess()
   }, [params.id])
 
   const toggleExpediente = (expedienteId: string) => {
-    setExpandedExpedientes(prev => 
-      prev.includes(expedienteId) 
+    setExpandedExpedientes(prev =>
+      prev.includes(expedienteId)
         ? prev.filter(id => id !== expedienteId)
         : [...prev, expedienteId]
     )
   }
 
   const toggleActividad = (actividadId: string) => {
-    setExpandedActividades(prev => 
-      prev.includes(actividadId) 
+    setExpandedActividades(prev =>
+      prev.includes(actividadId)
         ? prev.filter(id => id !== actividadId)
         : [...prev, actividadId]
     )
@@ -72,10 +77,10 @@ export default function ProcesoDetailPage() {
       // Si es base64, extraer información del archivo
       if (actividad.archivo_url.startsWith('data:')) {
         const fileName = actividad.metadata?.archivo_info?.nombre || 'archivo.pdf'
-        const fileSize = actividad.metadata?.archivo_info?.tamaño ? 
+        const fileSize = actividad.metadata?.archivo_info?.tamaño ?
           `${(actividad.metadata.archivo_info.tamaño / 1024 / 1024).toFixed(2)} MB` : 'N/A'
         const fileType = actividad.metadata?.archivo_info?.tipo || 'application/pdf'
-        
+
         files.push({
           id: 1,
           name: fileName,
@@ -183,11 +188,11 @@ export default function ProcesoDetailPage() {
       <div className="min-h-screen bg-gray-50">
         {/* Mobile Header */}
         {user && <MobileHeader onMenuClick={() => setIsSidebarOpen(true)} />}
-        
+
         <div className="flex">
-          <Sidebar 
-            isOpen={isSidebarOpen} 
-            onClose={() => setIsSidebarOpen(false)} 
+          <Sidebar
+            isOpen={isSidebarOpen}
+            onClose={() => setIsSidebarOpen(false)}
           />
           <div className="flex-1 lg:ml-64 p-4 lg:p-8">
             <div className="max-w-4xl mx-auto">
@@ -216,13 +221,13 @@ export default function ProcesoDetailPage() {
     <div className="min-h-screen bg-gray-50">
       {/* Mobile Header */}
       {user && <MobileHeader onMenuClick={() => setIsSidebarOpen(true)} />}
-      
+
       <div className="flex">
-        <Sidebar 
-          isOpen={isSidebarOpen} 
-          onClose={() => setIsSidebarOpen(false)} 
+        <Sidebar
+          isOpen={isSidebarOpen}
+          onClose={() => setIsSidebarOpen(false)}
         />
-        
+
         <div className="flex-1 lg:ml-64 p-4 lg:p-8">
           <div className="max-w-6xl mx-auto">
             {/* Header */}
@@ -244,7 +249,7 @@ export default function ProcesoDetailPage() {
                     </p>
                   </div>
                 </div>
-                
+
                 {/* Botón de Nueva Búsqueda */}
                 <a
                   href="/"
@@ -259,7 +264,7 @@ export default function ProcesoDetailPage() {
             {/* Información del Proceso */}
             <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 mb-8">
               <h2 className="text-xl font-semibold text-gray-900 mb-6">Información del Proceso</h2>
-              
+
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div>
                   <h3 className="font-medium text-gray-900 mb-3">Partes del Proceso</h3>
@@ -286,7 +291,7 @@ export default function ProcesoDetailPage() {
                     </div>
                   </div>
                 </div>
-                
+
                 <div>
                   <h3 className="font-medium text-gray-900 mb-3">Detalles del Proceso</h3>
                   <div className="space-y-3">
@@ -296,13 +301,12 @@ export default function ProcesoDetailPage() {
                     </div>
                     <div>
                       <label className="text-sm font-medium text-gray-600">Estado</label>
-                      <span className={`px-2 py-1 text-xs font-medium rounded-full ${
-                        proceso.estado === 'activo'
-                          ? 'bg-green-100 text-green-800'
-                          : proceso.estado === 'acumulado'
+                      <span className={`px-2 py-1 text-xs font-medium rounded-full ${proceso.estado === 'activo'
+                        ? 'bg-green-100 text-green-800'
+                        : proceso.estado === 'acumulado'
                           ? 'bg-yellow-100 text-yellow-800'
                           : 'bg-gray-100 text-gray-800'
-                      }`}>
+                        }`}>
                         {proceso.estado}
                       </span>
                     </div>
@@ -326,7 +330,7 @@ export default function ProcesoDetailPage() {
             {/* Expedientes */}
             <div className="space-y-6">
               <h2 className="text-xl font-semibold text-gray-900">Expedientes</h2>
-              
+
               {proceso.expedientes && proceso.expedientes.length > 0 ? (
                 proceso.expedientes.map((expediente: any) => (
                   <div key={expediente.id} className="bg-white rounded-lg shadow-sm border border-gray-200">
@@ -353,134 +357,134 @@ export default function ProcesoDetailPage() {
                         )}
                       </button>
                     </div>
-                    
+
                     {expandedExpedientes.includes(expediente.id) && (
                       <div className="border-t border-gray-200 p-6">
                         <h4 className="font-medium text-gray-900 mb-4">Actividades</h4>
-                        
+
                         {expediente.actividades && expediente.actividades.length > 0 ? (
                           <div className="space-y-4">
                             {expediente.actividades
                               .sort((a: any, b: any) => new Date(b.fecha_creacion).getTime() - new Date(a.fecha_creacion).getTime())
                               .map((actividad: any) => (
-                              <div key={actividad.id} className="border border-gray-200 rounded-lg p-4">
-                                <button
-                                  onClick={() => toggleActividad(actividad.id)}
-                                  className="w-full flex items-center justify-between text-left"
-                                >
-                                  <div className="flex items-center gap-3">
-                                    {getTipoIcon(actividad.tipo)}
-                                    <div>
-                                      <h5 className="font-medium text-gray-900">
-                                        {actividad.tipo === 'escrito' ? 'Escrito' : 
-                                         actividad.tipo === 'providencia' ? 'Providencia' :
-                                         actividad.tipo === 'razon' ? 'Razón' :
-                                         actividad.tipo === 'oficio' ? 'Oficio' :
-                                         actividad.tipo === 'notificacion' ? 'Notificación' :
-                                         actividad.tipo === 'tercero' ? 'Escrito de Tercero' :
-                                         actividad.tipo}
-                                      </h5>
-                                      <p className="text-sm text-gray-600">
-                                        {new Date(actividad.fecha_creacion).toLocaleString('es-EC')}
-                                      </p>
-                                    </div>
-                                  </div>
-                                  <div className="flex items-center gap-2">
-                                    <span className={`px-2 py-1 text-xs font-medium rounded-full ${getTipoColor(actividad.tipo)}`}>
-                                      {actividad.tipo}
-                                    </span>
-                                    {expandedActividades.includes(actividad.id) ? (
-                                      <ChevronDown className="h-4 w-4 text-gray-400" />
-                                    ) : (
-                                      <ChevronRight className="h-4 w-4 text-gray-400" />
-                                    )}
-                                  </div>
-                                </button>
-                                
-                                {expandedActividades.includes(actividad.id) && (
-                                  <div className="mt-4 pt-4 border-t border-gray-200">
-                                    <div className="mb-4">
-                                      <label className="text-sm font-medium text-gray-600">Creado por</label>
-                                      <p className="text-gray-900">{actividad.creado_por}</p>
-                                    </div>
-                                    
-                                    
-                                    <div className="mb-4">
-                                      <label className="text-sm font-medium text-gray-600">Contenido</label>
-                                      <div className="mt-1 p-3 bg-gray-50 rounded-lg">
-                                        <p className="text-gray-900 whitespace-pre-wrap">{actividad.contenido}</p>
+                                <div key={actividad.id} className="border border-gray-200 rounded-lg p-4">
+                                  <button
+                                    onClick={() => toggleActividad(actividad.id)}
+                                    className="w-full flex items-center justify-between text-left"
+                                  >
+                                    <div className="flex items-center gap-3">
+                                      {getTipoIcon(actividad.tipo)}
+                                      <div>
+                                        <h5 className="font-medium text-gray-900">
+                                          {actividad.tipo === 'escrito' ? 'Escrito' :
+                                            actividad.tipo === 'providencia' ? 'Providencia' :
+                                              actividad.tipo === 'razon' ? 'Razón' :
+                                                actividad.tipo === 'oficio' ? 'Oficio' :
+                                                  actividad.tipo === 'notificacion' ? 'Notificación' :
+                                                    actividad.tipo === 'tercero' ? 'Escrito de Tercero' :
+                                                      actividad.tipo}
+                                        </h5>
+                                        <p className="text-sm text-gray-600">
+                                          {new Date(actividad.fecha_creacion).toLocaleString('es-EC')}
+                                        </p>
                                       </div>
                                     </div>
-                                    
-                                    {actividad.metadata && (
+                                    <div className="flex items-center gap-2">
+                                      <span className={`px-2 py-1 text-xs font-medium rounded-full ${getTipoColor(actividad.tipo)}`}>
+                                        {actividad.tipo}
+                                      </span>
+                                      {expandedActividades.includes(actividad.id) ? (
+                                        <ChevronDown className="h-4 w-4 text-gray-400" />
+                                      ) : (
+                                        <ChevronRight className="h-4 w-4 text-gray-400" />
+                                      )}
+                                    </div>
+                                  </button>
+
+                                  {expandedActividades.includes(actividad.id) && (
+                                    <div className="mt-4 pt-4 border-t border-gray-200">
                                       <div className="mb-4">
-                                        <label className="text-sm font-medium text-gray-600">Información Adicional</label>
-                                        <div className="mt-1 p-3 bg-blue-50 rounded-lg">
-                                          {/* Información del usuario creador */}
-                                          {actividad.metadata.usuario_creador && (
-                                            <div className="text-sm mb-3 pb-3 border-b border-blue-200">
-                                              <p><strong>Usuario creador:</strong> {actividad.metadata.usuario_creador.nombre}</p>
-                                              <p><strong>Rol:</strong> {actividad.metadata.usuario_creador.rol}</p>
-                                              <p><strong>Email:</strong> {actividad.metadata.usuario_creador.email}</p>
-                                            </div>
-                                          )}
-                                          
-                                          {/* Título personalizado */}
-                                          {actividad.titulo && (
-                                            <div className="text-sm mb-3 pb-3 border-b border-blue-200">
-                                              <p><strong>Título:</strong> {actividad.titulo}</p>
-                                            </div>
-                                          )}
-                                          
-                                          {/* Información específica de terceros */}
-                                          {actividad.metadata.es_tercero && (
-                                            <div className="text-sm">
-                                              <p><strong>Tipo de tercero:</strong> {actividad.metadata.tipo_tercero}</p>
-                                              <p><strong>Nombre:</strong> {actividad.metadata.nombre_tercero}</p>
-                                              <p><strong>Cédula:</strong> {actividad.metadata.cedula_tercero}</p>
-                                            </div>
-                                          )}
-                                          
-                                          {/* Información específica de providencias */}
-                                          {actividad.metadata.tipo_providencia && (
-                                            <div className="text-sm">
-                                              <p><strong>Tipo de providencia:</strong> {actividad.metadata.tipo_providencia}</p>
-                                            </div>
-                                          )}
-                                          
-                                          {/* Información específica de actuaciones de secretaría */}
-                                          {actividad.metadata.tipo_actuacion && (
-                                            <div className="text-sm">
-                                              <p><strong>Tipo de actuación:</strong> {actividad.metadata.tipo_actuacion}</p>
-                                            </div>
-                                          )}
-                                          
-                                          {/* Información específica de escritos de abogados */}
-                                          {actividad.metadata.tipo_petitorio && (
-                                            <div className="text-sm">
-                                              <p><strong>Tipo de petitorio:</strong> {actividad.metadata.tipo_petitorio}</p>
-                                              <p><strong>Calidad:</strong> {actividad.metadata.calidad}</p>
-                                            </div>
-                                          )}
+                                        <label className="text-sm font-medium text-gray-600">Creado por</label>
+                                        <p className="text-gray-900">{actividad.creado_por}</p>
+                                      </div>
+
+
+                                      <div className="mb-4">
+                                        <label className="text-sm font-medium text-gray-600">Contenido</label>
+                                        <div className="mt-1 p-3 bg-gray-50 rounded-lg">
+                                          <p className="text-gray-900 whitespace-pre-wrap">{actividad.contenido}</p>
                                         </div>
                                       </div>
-                                    )}
-                                    
-                                    {actividad.archivo_url && (
-                                      <div className="flex gap-2">
-                                        <button
-                                          onClick={() => handleViewFiles(actividad)}
-                                          className="bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-4 rounded-lg transition-colors duration-200 text-sm flex items-center gap-2"
-                                        >
-                                          <Eye className="h-4 w-4" />
-                                          Ver Archivos
-                                        </button>
-                                      </div>
-                                    )}
-                                  </div>
-                                )}
-                              </div>
-                            ))}
+
+                                      {actividad.metadata && (
+                                        <div className="mb-4">
+                                          <label className="text-sm font-medium text-gray-600">Información Adicional</label>
+                                          <div className="mt-1 p-3 bg-blue-50 rounded-lg">
+                                            {/* Información del usuario creador */}
+                                            {actividad.metadata.usuario_creador && (
+                                              <div className="text-sm mb-3 pb-3 border-b border-blue-200">
+                                                <p><strong>Usuario creador:</strong> {actividad.metadata.usuario_creador.nombre}</p>
+                                                <p><strong>Rol:</strong> {actividad.metadata.usuario_creador.rol}</p>
+                                                <p><strong>Email:</strong> {actividad.metadata.usuario_creador.email}</p>
+                                              </div>
+                                            )}
+
+                                            {/* Título personalizado */}
+                                            {actividad.titulo && (
+                                              <div className="text-sm mb-3 pb-3 border-b border-blue-200">
+                                                <p><strong>Título:</strong> {actividad.titulo}</p>
+                                              </div>
+                                            )}
+
+                                            {/* Información específica de terceros */}
+                                            {actividad.metadata.es_tercero && (
+                                              <div className="text-sm">
+                                                <p><strong>Tipo de tercero:</strong> {actividad.metadata.tipo_tercero}</p>
+                                                <p><strong>Nombre:</strong> {actividad.metadata.nombre_tercero}</p>
+                                                <p><strong>Cédula:</strong> {actividad.metadata.cedula_tercero}</p>
+                                              </div>
+                                            )}
+
+                                            {/* Información específica de providencias */}
+                                            {actividad.metadata.tipo_providencia && (
+                                              <div className="text-sm">
+                                                <p><strong>Tipo de providencia:</strong> {actividad.metadata.tipo_providencia}</p>
+                                              </div>
+                                            )}
+
+                                            {/* Información específica de actuaciones de secretaría */}
+                                            {actividad.metadata.tipo_actuacion && (
+                                              <div className="text-sm">
+                                                <p><strong>Tipo de actuación:</strong> {actividad.metadata.tipo_actuacion}</p>
+                                              </div>
+                                            )}
+
+                                            {/* Información específica de escritos de abogados */}
+                                            {actividad.metadata.tipo_petitorio && (
+                                              <div className="text-sm">
+                                                <p><strong>Tipo de petitorio:</strong> {actividad.metadata.tipo_petitorio}</p>
+                                                <p><strong>Calidad:</strong> {actividad.metadata.calidad}</p>
+                                              </div>
+                                            )}
+                                          </div>
+                                        </div>
+                                      )}
+
+                                      {actividad.archivo_url && (
+                                        <div className="flex gap-2">
+                                          <button
+                                            onClick={() => handleViewFiles(actividad)}
+                                            className="bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-4 rounded-lg transition-colors duration-200 text-sm flex items-center gap-2"
+                                          >
+                                            <Eye className="h-4 w-4" />
+                                            Ver Archivos
+                                          </button>
+                                        </div>
+                                      )}
+                                    </div>
+                                  )}
+                                </div>
+                              ))}
                           </div>
                         ) : (
                           <div className="text-center py-8 text-gray-500">
@@ -519,7 +523,7 @@ export default function ProcesoDetailPage() {
                   <X className="h-6 w-6" />
                 </button>
               </div>
-              
+
               {selectedActivityFiles.length > 0 ? (
                 <div className="space-y-4">
                   {selectedActivityFiles.map((file) => (

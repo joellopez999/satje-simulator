@@ -4,9 +4,11 @@ import { useState, useEffect } from 'react'
 import { Inbox, FileText, Clock, AlertCircle, CheckCircle, Plus, Eye, CheckSquare, RefreshCw, Calendar } from 'lucide-react'
 import Sidebar from '@/components/Sidebar'
 import MobileHeader from '@/components/MobileHeader'
-import { getProcesses, createActivity } from '@/lib/simple-storage'
+import { createActivity, markWritingAsDispatched } from '@/lib/storage'
+import { useUser } from '@/app/providers'
 
 export default function OperadoresPage() {
+  const { user } = useUser()
   const [activeTab, setActiveTab] = useState('buzon')
   const [processes, setProcesses] = useState<any[]>([])
   const [isLoading, setIsLoading] = useState(true)
@@ -22,9 +24,12 @@ export default function OperadoresPage() {
   })
 
   useEffect(() => {
-    const loadProcesses = () => {
+    const loadProcesses = async () => {
       try {
-        const allProcesses = getProcesses()
+        // Usar API Route para cargar procesos
+        const response = await fetch('/api/processes/search')
+        if (!response.ok) throw new Error('Error fetching processes')
+        const allProcesses = await response.json()
         setProcesses(allProcesses)
       } catch (error) {
         console.error('Error loading processes:', error)
@@ -44,7 +49,7 @@ export default function OperadoresPage() {
     }
 
     document.addEventListener('visibilitychange', handleVisibilityChange)
-    
+
     return () => {
       document.removeEventListener('visibilitychange', handleVisibilityChange)
     }
@@ -63,8 +68,8 @@ export default function OperadoresPage() {
           titulo: actividad.titulo,
           fecha_escrito: actividad.fecha_creacion,
           dias_pendiente: Math.floor((Date.now() - new Date(actividad.fecha_creacion).getTime()) / (1000 * 60 * 60 * 24)),
-          estado: Math.floor((Date.now() - new Date(actividad.fecha_creacion).getTime()) / (1000 * 60 * 60 * 24)) > 7 ? 'vencido' : 
-                  Math.floor((Date.now() - new Date(actividad.fecha_creacion).getTime()) / (1000 * 60 * 60 * 24)) > 3 ? 'urgente' : 'normal',
+          estado: Math.floor((Date.now() - new Date(actividad.fecha_creacion).getTime()) / (1000 * 60 * 60 * 24)) > 7 ? 'vencido' :
+            Math.floor((Date.now() - new Date(actividad.fecha_creacion).getTime()) / (1000 * 60 * 60 * 24)) > 3 ? 'urgente' : 'normal',
           contenido: actividad.contenido,
           expediente_id: expediente.id,
           despachado: actividad.despachado || false,
@@ -79,12 +84,12 @@ export default function OperadoresPage() {
   ).filter(Boolean)
 
   // Generar escritos despachados recientemente (últimos 7 días)
-  const escritosDespachados = processes.flatMap(process => 
-    process.expedientes?.flatMap((expediente: any) => 
+  const escritosDespachados = processes.flatMap(process =>
+    process.expedientes?.flatMap((expediente: any) =>
       expediente.actividades
-        ?.filter((actividad: any) => 
-          actividad.tipo === 'escrito' && 
-          actividad.despachado && 
+        ?.filter((actividad: any) =>
+          actividad.tipo === 'escrito' &&
+          actividad.despachado &&
           actividad.fecha_despacho &&
           (Date.now() - new Date(actividad.fecha_despacho).getTime()) < (7 * 24 * 60 * 60 * 1000)
         )
@@ -147,7 +152,7 @@ export default function OperadoresPage() {
 
   const handleSubmitProvidencia = async (e: React.FormEvent) => {
     e.preventDefault()
-    
+
     if (!selectedEscrito || !providenciaData.tipo || !providenciaData.contenido) {
       alert('Por favor complete todos los campos')
       return
@@ -159,92 +164,93 @@ export default function OperadoresPage() {
     }
 
     // Confirmación de seguridad
-    const confirmMessage = providenciaData.solicitar_secretaria 
+    const confirmMessage = providenciaData.solicitar_secretaria
       ? `¿Está seguro de que desea crear esta providencia?\n\nTipo: ${providenciaData.tipo}\nTítulo: ${providenciaData.titulo}\n\nSe solicitará actividad a secretaría: ${providenciaData.solicitud_secretaria}\n\nEsta acción creará la providencia y marcará el escrito como despachado.`
       : `¿Está seguro de que desea crear esta providencia?\n\nTipo: ${providenciaData.tipo}\nTítulo: ${providenciaData.titulo}\n\nEsta acción creará la providencia y marcará el escrito como despachado.`
-    
+
     if (!confirm(confirmMessage)) {
       return
     }
 
     try {
       // Crear la providencia
-      const newProvidencia = createActivity({
-        expediente_id: selectedEscrito.expediente_id,
-        tipo: 'providencia',
-        titulo: providenciaData.titulo,
-        contenido: providenciaData.contenido,
-        creado_por: 'Juez del Sistema',
-        metadata: {
-          tipo_providencia: providenciaData.tipo,
-          escrito_relacionado: selectedEscrito.id,
-          numero_causa: selectedEscrito.numero_causa
-        }
+      // Crear la providencia usando API Route
+      const providenciaResponse = await fetch('/api/activities/create', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          expediente_id: selectedEscrito.expediente_id,
+          tipo: 'providencia',
+          titulo: providenciaData.titulo,
+          contenido: providenciaData.contenido,
+          creado_por: user?.id || '',
+          fecha_creacion: new Date().toISOString(),
+          metadata: {
+            tipo_providencia: providenciaData.tipo,
+            escrito_relacionado: selectedEscrito.id,
+            numero_causa: selectedEscrito.numero_causa
+          }
+        }),
       })
 
-      // Marcar el escrito como despachado
-      const allProcesses = getProcesses()
-      const processIndex = allProcesses.findIndex(p => p.expedientes?.some(e => e.id === selectedEscrito.expediente_id))
-      
-      if (processIndex !== -1) {
-        const expedienteIndex = allProcesses[processIndex].expedientes!.findIndex(e => e.id === selectedEscrito.expediente_id)
-        
-        if (expedienteIndex !== -1) {
-          const actividadIndex = allProcesses[processIndex].expedientes![expedienteIndex].actividades.findIndex(a => a.id === selectedEscrito.id)
-          
-          if (actividadIndex !== -1) {
-            // Marcar como despachado
-            allProcesses[processIndex].expedientes![expedienteIndex].actividades[actividadIndex].despachado = true
-            allProcesses[processIndex].expedientes![expedienteIndex].actividades[actividadIndex].fecha_despacho = new Date().toISOString()
-            allProcesses[processIndex].expedientes![expedienteIndex].actividades[actividadIndex].despachado_por = 'Juez del Sistema'
-            
-            // Guardar cambios
-            localStorage.setItem('satje_processes', JSON.stringify(allProcesses))
-          }
-        }
+      if (!providenciaResponse.ok) {
+        const errorData = await providenciaResponse.json()
+        throw new Error(errorData.error || 'Error al crear providencia')
       }
 
-      // Si se solicita actividad a secretaría, crear la solicitud
-      if (providenciaData.solicitar_secretaria) {
-        const solicitudSecretaria = {
-          id: `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-          providencia_id: newProvidencia.id,
-          proceso_id: allProcesses[processIndex].id,
-          expediente_id: selectedEscrito.expediente_id,
-          numero_causa: selectedEscrito.numero_causa,
-          instrucciones: providenciaData.solicitud_secretaria,
-          estado: 'pendiente',
-          fecha_solicitud: new Date().toISOString(),
-          solicitado_por: 'Juez del Sistema',
-          solicitado_por_id: 'juez-sistema',
-          titulo_providencia: providenciaData.titulo,
-          escrito_id: selectedEscrito.id
-        }
+      const newProvidencia = await providenciaResponse.json()
 
-        // Guardar solicitud en localStorage
-        const existingSolicitudes = JSON.parse(localStorage.getItem('satje_solicitudes_secretaria') || '[]')
-        existingSolicitudes.push(solicitudSecretaria)
-        localStorage.setItem('satje_solicitudes_secretaria', JSON.stringify(existingSolicitudes))
+      if (!newProvidencia) throw new Error('Error al crear providencia')
+
+      // Marcar el escrito como despachado
+      await markWritingAsDispatched(selectedEscrito.id, 'Juez del Sistema')
+
+      // Si se solicita actividad a secretaría, crear la solicitud como una actividad interna
+      if (providenciaData.solicitar_secretaria) {
+        await fetch('/api/activities/create', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            expediente_id: selectedEscrito.expediente_id,
+            tipo: 'otros', // Usamos 'otros' para solicitudes internas
+            titulo: `SOLICITUD A SECRETARÍA: ${providenciaData.titulo}`,
+            contenido: providenciaData.solicitud_secretaria,
+            creado_por: user?.id || '',
+            fecha_creacion: new Date().toISOString(),
+            metadata: {
+              solicitud_secretaria: true,
+              providencia_id: newProvidencia.id,
+              estado: 'pendiente',
+              solicitado_por: 'Juez del Sistema'
+            }
+          }),
+        })
       }
 
       console.log('Providencia creada:', newProvidencia)
-      const successMessage = providenciaData.solicitar_secretaria 
+      const successMessage = providenciaData.solicitar_secretaria
         ? 'Providencia creada exitosamente, escrito marcado como despachado y solicitud enviada a secretaría'
         : 'Providencia creada exitosamente y escrito marcado como despachado'
       alert(successMessage)
-      
+
       setShowProvidenciaForm(false)
       setSelectedEscrito(null)
-      setProvidenciaData({ 
-        tipo: '', 
-        titulo: '', 
-        contenido: '', 
-        solicitar_secretaria: false, 
-        solicitud_secretaria: '' 
+      setProvidenciaData({
+        tipo: '',
+        titulo: '',
+        contenido: '',
+        solicitar_secretaria: false,
+        solicitud_secretaria: ''
       })
-      
+
       // Recargar procesos para actualizar la vista
-      const updatedProcesses = getProcesses()
+      const refreshResponse = await fetch('/api/processes/search')
+      if (!refreshResponse.ok) throw new Error('Error fetching processes')
+      const updatedProcesses = await refreshResponse.json()
       setProcesses(updatedProcesses)
     } catch (error) {
       console.error('Error al crear providencia:', error)
@@ -252,36 +258,19 @@ export default function OperadoresPage() {
     }
   }
 
-  const handleMarcarDespachado = (escrito: any) => {
+  const handleMarcarDespachado = async (escrito: any) => {
     if (confirm(`¿Está seguro de marcar como despachado el escrito "${escrito.titulo}"?`)) {
       try {
         // Marcar el escrito como despachado
-        const allProcesses = getProcesses()
-        const processIndex = allProcesses.findIndex(p => p.expedientes?.some(e => e.id === escrito.expediente_id))
-        
-        if (processIndex !== -1) {
-          const expedienteIndex = allProcesses[processIndex].expedientes!.findIndex(e => e.id === escrito.expediente_id)
-          
-          if (expedienteIndex !== -1) {
-            const actividadIndex = allProcesses[processIndex].expedientes![expedienteIndex].actividades.findIndex(a => a.id === escrito.id)
-            
-            if (actividadIndex !== -1) {
-              // Marcar como despachado
-              allProcesses[processIndex].expedientes![expedienteIndex].actividades[actividadIndex].despachado = true
-              allProcesses[processIndex].expedientes![expedienteIndex].actividades[actividadIndex].fecha_despacho = new Date().toISOString()
-              allProcesses[processIndex].expedientes![expedienteIndex].actividades[actividadIndex].despachado_por = 'Juez del Sistema'
-              
-              // Guardar cambios
-              localStorage.setItem('satje_processes', JSON.stringify(allProcesses))
-              
-              // Recargar procesos para actualizar la vista
-              const updatedProcesses = getProcesses()
-              setProcesses(updatedProcesses)
-              
-              alert('Escrito marcado como despachado')
-            }
-          }
-        }
+        await markWritingAsDispatched(escrito.id, 'Juez del Sistema')
+
+        // Recargar procesos para actualizar la vista
+        const response = await fetch('/api/processes/search')
+        if (!response.ok) throw new Error('Error fetching processes')
+        const updatedProcesses = await response.json()
+        setProcesses(updatedProcesses)
+
+        alert('Escrito marcado como despachado')
       } catch (error) {
         console.error('Error al marcar como despachado:', error)
         alert('Error al marcar como despachado')
@@ -294,12 +283,12 @@ export default function OperadoresPage() {
     <div className="min-h-screen bg-gray-50">
       {/* Mobile Header */}
       <MobileHeader onMenuClick={() => setIsSidebarOpen(true)} />
-      
+
       <div className="flex">
         {/* Sidebar */}
-        <Sidebar 
-          isOpen={isSidebarOpen} 
-          onClose={() => setIsSidebarOpen(false)} 
+        <Sidebar
+          isOpen={isSidebarOpen}
+          onClose={() => setIsSidebarOpen(false)}
         />
 
         {/* Main Content */}
@@ -315,8 +304,10 @@ export default function OperadoresPage() {
                   </h1>
                 </div>
                 <button
-                  onClick={() => {
-                    const allProcesses = getProcesses()
+                  onClick={async () => {
+                    const response = await fetch('/api/processes/search')
+                    if (!response.ok) throw new Error('Error fetching processes')
+                    const allProcesses = await response.json()
                     setProcesses(allProcesses)
                   }}
                   className="btn-secondary flex items-center gap-2"
@@ -387,7 +378,7 @@ export default function OperadoresPage() {
               <div className="px-6 py-4 border-b border-gray-200">
                 <h3 className="text-lg font-semibold text-gray-900">Escritos Pendientes de Despacho</h3>
               </div>
-              
+
               <div className="divide-y divide-gray-200 overflow-x-auto">
                 {escritosPendientes.map((escrito) => (
                   <div key={escrito.id} className="p-6 hover:bg-gray-50 min-w-0">
@@ -402,7 +393,7 @@ export default function OperadoresPage() {
                             {escrito.estado === 'normal' ? 'Normal' : escrito.estado === 'urgente' ? 'Urgente' : 'Vencido'}
                           </span>
                         </div>
-                        
+
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-3">
                           <div>
                             <p className="text-sm text-gray-600">
@@ -421,11 +412,11 @@ export default function OperadoresPage() {
                             </p>
                           </div>
                         </div>
-                        
+
                         <p className="text-sm text-gray-600 mb-3">
                           <span className="font-medium">Fecha del escrito:</span> {new Date(escrito.fecha_escrito).toLocaleDateString('es-EC')}
                         </p>
-                        
+
                         {/* Información del usuario creador */}
                         {escrito.usuario_creador && (
                           <div className="mb-3 p-3 bg-blue-50 border border-blue-200 rounded-lg">
@@ -446,21 +437,21 @@ export default function OperadoresPage() {
                             </div>
                           </div>
                         )}
-                        
+
                         <p className="text-sm text-gray-700 bg-gray-50 p-3 rounded-lg">
                           {escrito.contenido}
                         </p>
                       </div>
-                      
+
                       <div className="ml-6 flex flex-col gap-2 min-w-0 flex-shrink-0">
-                        <button 
+                        <button
                           onClick={() => alert(`Escrito: ${escrito.titulo}\nContenido: ${escrito.contenido}`)}
                           className="bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-3 rounded-lg transition-colors duration-200 text-xs flex items-center gap-1 whitespace-nowrap"
                         >
                           <Eye className="h-3 w-3" />
                           Ver Escrito
                         </button>
-                        <button 
+                        <button
                           onClick={() => {
                             if (confirm(`¿Está seguro de que desea crear una providencia para el escrito "${escrito.titulo}"?\n\nProceso: ${escrito.numero_causa}\nFecha: ${new Date(escrito.fecha_escrito).toLocaleDateString('es-EC')}`)) {
                               handleCrearProvidencia(escrito)
@@ -471,7 +462,7 @@ export default function OperadoresPage() {
                           <Plus className="h-3 w-3" />
                           Crear Providencia
                         </button>
-                        <button 
+                        <button
                           onClick={() => {
                             if (confirm(`¿Está seguro de que desea marcar como despachado el escrito "${escrito.titulo}"?\n\nProceso: ${escrito.numero_causa}\nEsta acción no se puede deshacer.`)) {
                               handleMarcarDespachado(escrito)
@@ -482,7 +473,7 @@ export default function OperadoresPage() {
                           <CheckSquare className="h-3 w-3" />
                           Marcar Despachado
                         </button>
-                        <button 
+                        <button
                           onClick={() => window.open(`/proceso/${processes.find(p => p.numero_causa === escrito.numero_causa)?.id}`, '_blank')}
                           className="bg-purple-600 hover:bg-purple-700 text-white font-medium py-2 px-3 rounded-lg transition-colors duration-200 text-xs whitespace-nowrap"
                         >
@@ -502,7 +493,7 @@ export default function OperadoresPage() {
                   <h3 className="text-lg font-semibold text-gray-900">Escritos Despachados Recientemente</h3>
                   <p className="text-sm text-gray-600">Últimos 7 días</p>
                 </div>
-                
+
                 <div className="divide-y divide-gray-200 overflow-x-auto">
                   {escritosDespachados.map((escrito) => (
                     <div key={escrito.id} className="p-6 hover:bg-gray-50 min-w-0">
@@ -521,32 +512,32 @@ export default function OperadoresPage() {
                           <p className="text-sm text-gray-700 mb-1">
                             <strong>Actor:</strong> {escrito.actor} | <strong>Demandado:</strong> {escrito.demandado}
                           </p>
-                          
+
                           {/* Información del usuario creador */}
                           {escrito.usuario_creador && (
                             <div className="mb-2 p-2 bg-blue-50 border border-blue-200 rounded text-xs">
                               <p className="text-blue-800">
-                                <span className="font-medium">Creado por:</span> {escrito.usuario_creador.nombre} ({escrito.usuario_creador.rol}) | 
+                                <span className="font-medium">Creado por:</span> {escrito.usuario_creador.nombre} ({escrito.usuario_creador.rol}) |
                                 <span className="font-medium"> Email:</span> {escrito.usuario_creador.email}
                               </p>
                             </div>
                           )}
-                          
+
                           <p className="text-xs text-gray-500">
-                            Escrito: {new Date(escrito.fecha_escrito).toLocaleDateString('es-EC')} | 
+                            Escrito: {new Date(escrito.fecha_escrito).toLocaleDateString('es-EC')} |
                             Despachado: {new Date(escrito.fecha_despacho).toLocaleDateString('es-EC')} por {escrito.despachado_por}
                           </p>
                         </div>
-                        
+
                         <div className="ml-6 flex flex-col gap-2 min-w-0 flex-shrink-0">
-                          <button 
+                          <button
                             onClick={() => alert(`Escrito: ${escrito.titulo}\nContenido: ${escrito.contenido}`)}
                             className="btn-secondary text-xs flex items-center gap-1 whitespace-nowrap"
                           >
                             <Eye className="h-3 w-3" />
                             Ver Escrito
                           </button>
-                          <button 
+                          <button
                             onClick={() => window.open(`/proceso/${processes.find(p => p.numero_causa === escrito.numero_causa)?.id}`, '_blank')}
                             className="bg-purple-600 hover:bg-purple-700 text-white font-medium py-2 px-3 rounded-lg transition-colors duration-200 text-xs whitespace-nowrap"
                           >
@@ -584,8 +575,8 @@ export default function OperadoresPage() {
                 <div className="mb-6 p-4 bg-gray-50 rounded-lg">
                   <h4 className="font-medium text-gray-900 mb-2">Escrito Relacionado</h4>
                   <p className="text-sm text-gray-600">
-                    <strong>Proceso:</strong> {selectedEscrito.numero_causa}<br/>
-                    <strong>Título:</strong> {selectedEscrito.titulo}<br/>
+                    <strong>Proceso:</strong> {selectedEscrito.numero_causa}<br />
+                    <strong>Título:</strong> {selectedEscrito.titulo}<br />
                     <strong>Fecha:</strong> {new Date(selectedEscrito.fecha_escrito).toLocaleDateString('es-EC')}
                   </p>
                 </div>
@@ -652,8 +643,8 @@ export default function OperadoresPage() {
                       type="checkbox"
                       id="solicitar_secretaria"
                       checked={providenciaData.solicitar_secretaria}
-                      onChange={(e) => setProvidenciaData(prev => ({ 
-                        ...prev, 
+                      onChange={(e) => setProvidenciaData(prev => ({
+                        ...prev,
                         solicitar_secretaria: e.target.checked,
                         solicitud_secretaria: e.target.checked ? prev.solicitud_secretaria : ''
                       }))}

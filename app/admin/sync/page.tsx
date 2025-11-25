@@ -1,29 +1,64 @@
 'use client'
 
-import { useState } from 'react'
-import { RefreshCw, Database, Trash2, Download, Upload } from 'lucide-react'
+import { useState, useEffect } from 'react'
+import { RefreshCw, Database, CheckCircle } from 'lucide-react'
 import Sidebar from '@/components/Sidebar'
 import { useUser } from '@/app/providers'
-import { resetStorage, getProcesses, getUsers } from '@/lib/storage'
+import { getProcesses, getUsers } from '@/lib/storage'
 
 export default function SyncPage() {
   const { user } = useUser()
-  const [isResetting, setIsResetting] = useState(false)
+  const [processes, setProcesses] = useState<any[]>([])
+  const [users, setUsers] = useState<any[]>([])
+  const [isLoading, setIsLoading] = useState(true)
+  const [isMigrating, setIsMigrating] = useState(false)
+  const [migrationResult, setMigrationResult] = useState<any>(null)
 
-  const handleReset = async () => {
-    if (!confirm('¿Está seguro de que desea reinicializar todos los datos? Esta acción no se puede deshacer.')) {
+  useEffect(() => {
+    const loadData = async () => {
+      try {
+        const [allProcesses, allUsers] = await Promise.all([
+          fetch('/api/processes/search').then(r => r.json()),
+          getUsers()
+        ])
+        setProcesses(allProcesses)
+        setUsers(allUsers)
+      } catch (error) {
+        console.error('Error loading data:', error)
+      } finally {
+        setIsLoading(false)
+      }
+    }
+    loadData()
+  }, [])
+
+  const handleMigrateExpedientes = async () => {
+    if (!confirm('¿Está seguro de que desea ejecutar la migración de expedientes?\n\nEsto creará expedientes de primera instancia para todos los procesos que no los tengan.')) {
       return
     }
-    
-    setIsResetting(true)
+
+    setIsMigrating(true)
+    setMigrationResult(null)
+
     try {
-      resetStorage()
-      alert('Datos reinicializados exitosamente. Recargue la página para ver los cambios.')
+      const response = await fetch('/api/processes/migrate-expedientes')
+      const result = await response.json()
+
+      if (!response.ok) {
+        throw new Error(result.error || 'Error en la migración')
+      }
+
+      setMigrationResult(result)
+      alert(`✅ Migración completada:\n\n- Procesos totales: ${result.totalProcesses}\n- Procesos sin expedientes: ${result.processesWithoutExpedientes}\n- Expedientes creados: ${result.expedientesCreated}`)
+
+      // Recargar datos
+      const allProcesses = await fetch('/api/processes/search').then(r => r.json())
+      setProcesses(allProcesses)
     } catch (error) {
-      console.error('Error al reinicializar:', error)
-      alert('Error al reinicializar los datos')
+      console.error('Error en migración:', error)
+      alert('❌ Error al ejecutar la migración: ' + (error as Error).message)
     } finally {
-      setIsResetting(false)
+      setIsMigrating(false)
     }
   }
 
@@ -44,23 +79,20 @@ export default function SyncPage() {
     )
   }
 
-  const processes = getProcesses()
-  const users = getUsers()
-
   return (
     <div className="min-h-screen bg-judicial-50">
       <div className="flex">
         <Sidebar />
-        
+
         <div className="flex-1 lg:ml-64">
           <div className="p-8">
             {/* Header */}
             <div className="mb-8">
               <h1 className="text-3xl font-bold text-judicial-900 mb-2">
-                Sincronización de Datos
+                Estado del Sistema
               </h1>
               <p className="text-judicial-600">
-                Administre y sincronice los datos del sistema entre navegadores
+                Monitoreo de datos y estado de la base de datos remota
               </p>
             </div>
 
@@ -68,113 +100,100 @@ export default function SyncPage() {
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
               <div className="card text-center">
                 <div className="text-2xl font-bold text-primary-600 mb-1">
-                  {processes.length}
+                  {isLoading ? '...' : processes.length}
                 </div>
                 <div className="text-sm text-judicial-600">Procesos</div>
               </div>
               <div className="card text-center">
                 <div className="text-2xl font-bold text-green-600 mb-1">
-                  {users.length}
+                  {isLoading ? '...' : users.length}
                 </div>
                 <div className="text-sm text-judicial-600">Usuarios</div>
               </div>
               <div className="card text-center">
                 <div className="text-2xl font-bold text-blue-600 mb-1">
-                  {processes.filter(p => p.estado === 'activo').length}
+                  {isLoading ? '...' : processes.filter(p => p.estado === 'activo').length}
                 </div>
                 <div className="text-sm text-judicial-600">Activos</div>
               </div>
             </div>
 
-            {/* Información del Problema */}
+            {/* Información de Base de Datos */}
             <div className="card mb-6">
               <div className="flex items-center gap-3 mb-4">
-                <Database className="h-6 w-6 text-orange-600" />
+                <Database className="h-6 w-6 text-green-600" />
                 <h2 className="text-xl font-semibold text-judicial-900">
-                  Problema de Sincronización
+                  Conexión a Supabase
                 </h2>
               </div>
-              <div className="bg-orange-50 border border-orange-200 rounded-lg p-4 mb-4">
-                <p className="text-orange-800">
-                  <strong>Problema:</strong> Cada navegador (Chrome, Safari, Firefox) tiene su propio almacenamiento local independiente. 
-                  Esto significa que los datos no se comparten entre navegadores.
+              <div className="bg-green-50 border border-green-200 rounded-lg p-4 mb-4">
+                <div className="flex items-center gap-2">
+                  <CheckCircle className="h-5 w-5 text-green-600" />
+                  <p className="text-green-800 font-medium">
+                    Conectado a Base de Datos Remota
+                  </p>
+                </div>
+                <p className="text-green-700 mt-2 text-sm">
+                  El sistema está utilizando Supabase como backend. Todos los datos se sincronizan automáticamente en tiempo real.
                 </p>
-              </div>
-              <div className="space-y-2 text-sm text-judicial-600">
-                <p>• <strong>Chrome:</strong> Tiene sus propios datos en localStorage</p>
-                <p>• <strong>Safari:</strong> Tiene sus propios datos en localStorage</p>
-                <p>• <strong>Firefox:</strong> Tiene sus propios datos en localStorage</p>
               </div>
             </div>
 
-            {/* Soluciones */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              {/* Solución 1: Reinicializar */}
-              <div className="card">
-                <div className="flex items-center gap-3 mb-4">
-                  <RefreshCw className="h-6 w-6 text-blue-600" />
-                  <h2 className="text-xl font-semibold text-judicial-900">
-                    Reinicializar Datos
-                  </h2>
-                </div>
-                <p className="text-judicial-600 mb-4">
-                  Elimine todos los datos y reinicie con datos de ejemplo consistentes.
+            {/* Migración de Expedientes */}
+            <div className="card mb-6">
+              <div className="flex items-center gap-3 mb-4">
+                <RefreshCw className="h-6 w-6 text-blue-600" />
+                <h2 className="text-xl font-semibold text-judicial-900">
+                  Herramientas de Migración
+                </h2>
+              </div>
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4">
+                <h3 className="font-medium text-blue-900 mb-2">Migrar Expedientes</h3>
+                <p className="text-blue-700 text-sm mb-4">
+                  Esta herramienta crea expedientes de primera instancia para todos los procesos que no los tienen.
+                  Útil para reparar procesos creados antes del fix de expedientes.
                 </p>
                 <button
-                  onClick={handleReset}
-                  disabled={isResetting}
-                  className="btn-primary flex items-center gap-2 w-full"
+                  onClick={handleMigrateExpedientes}
+                  disabled={isMigrating}
+                  className="bg-blue-600 hover:bg-blue-700 disabled:bg-blue-300 text-white font-medium py-2 px-4 rounded-lg transition-colors duration-200 flex items-center gap-2"
                 >
-                  <RefreshCw className="h-4 w-4" />
-                  {isResetting ? 'Reinicializando...' : 'Reinicializar Sistema'}
+                  <RefreshCw className={`h-4 w-4 ${isMigrating ? 'animate-spin' : ''}`} />
+                  {isMigrating ? 'Migrando...' : 'Ejecutar Migración'}
                 </button>
               </div>
 
-              {/* Solución 2: Exportar/Importar */}
-              <div className="card">
-                <div className="flex items-center gap-3 mb-4">
-                  <Download className="h-6 w-6 text-green-600" />
-                  <h2 className="text-xl font-semibold text-judicial-900">
-                    Sincronización Manual
-                  </h2>
+              {migrationResult && (
+                <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+                  <h3 className="font-medium text-green-900 mb-2">✅ Resultado de Migración</h3>
+                  <div className="grid grid-cols-2 gap-4 text-sm">
+                    <div>
+                      <span className="font-medium text-green-800">Total de procesos:</span>
+                      <p className="text-green-700">{migrationResult.totalProcesses}</p>
+                    </div>
+                    <div>
+                      <span className="font-medium text-green-800">Procesos sin expedientes:</span>
+                      <p className="text-green-700">{migrationResult.processesWithoutExpedientes}</p>
+                    </div>
+                    <div>
+                      <span className="font-medium text-green-800">Expedientes creados:</span>
+                      <p className="text-green-700">{migrationResult.expedientesCreated}</p>
+                    </div>
+                    <div>
+                      <span className="font-medium text-green-800">Estado:</span>
+                      <p className="text-green-700">{migrationResult.message}</p>
+                    </div>
+                  </div>
                 </div>
-                <p className="text-judicial-600 mb-4">
-                  Para sincronizar entre navegadores:
-                </p>
-                <div className="space-y-2 text-sm text-judicial-600">
-                  <p>1. Exporte datos desde un navegador</p>
-                  <p>2. Importe en otro navegador</p>
-                  <p>3. Los datos se sincronizarán</p>
-                </div>
-                <button
-                  onClick={() => {
-                    const data = {
-                      processes: getProcesses(),
-                      users: getUsers(),
-                      timestamp: new Date().toISOString()
-                    }
-                    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' })
-                    const url = URL.createObjectURL(blob)
-                    const a = document.createElement('a')
-                    a.href = url
-                    a.download = `satje-backup-${new Date().toISOString().split('T')[0]}.json`
-                    a.click()
-                    URL.revokeObjectURL(url)
-                  }}
-                  className="btn-secondary flex items-center gap-2 w-full mt-4"
-                >
-                  <Download className="h-4 w-4" />
-                  Exportar Datos
-                </button>
-              </div>
+              )}
             </div>
 
             {/* Información del Navegador */}
             <div className="card mt-6">
               <div className="flex items-center gap-3 mb-4">
-                <Database className="h-6 w-6 text-judicial-600" />
+                <RefreshCw className="h-6 w-6 text-judicial-600" />
                 <h2 className="text-xl font-semibold text-judicial-900">
-                  Información del Navegador Actual
+                  Información de Sesión
                 </h2>
               </div>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
@@ -183,12 +202,12 @@ export default function SyncPage() {
                   <p className="text-judicial-600">{typeof window !== 'undefined' ? navigator.userAgent.split(' ')[0] : 'N/A'}</p>
                 </div>
                 <div>
-                  <span className="font-medium text-judicial-700">Almacenamiento:</span>
-                  <p className="text-judicial-600">localStorage</p>
+                  <span className="font-medium text-judicial-700">Usuario Actual:</span>
+                  <p className="text-judicial-600">{user?.name} ({user?.role})</p>
                 </div>
                 <div>
-                  <span className="font-medium text-judicial-700">Procesos:</span>
-                  <p className="text-judicial-600">{processes.length} registros</p>
+                  <span className="font-medium text-judicial-700">Email:</span>
+                  <p className="text-judicial-600">{user?.email}</p>
                 </div>
                 <div>
                   <span className="font-medium text-judicial-700">Última Actualización:</span>

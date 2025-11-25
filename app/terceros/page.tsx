@@ -2,14 +2,14 @@
 
 import { useState, useEffect } from 'react'
 import { User, Save, X, Search, Scale, ArrowLeft, Home } from 'lucide-react'
-import { getProcesses, createActivity } from '@/lib/simple-storage'
+import { useUser } from '@/app/providers'
 
 export default function TercerosPage() {
+  const { user } = useUser()
   const [selectedProcess, setSelectedProcess] = useState<any>(null)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [searchTerm, setSearchTerm] = useState('')
   const [searchResults, setSearchResults] = useState<any[]>([])
-  const [processes, setProcesses] = useState<any[]>([])
 
   const [terceroData, setTerceroData] = useState({
     nombre_tercero: '',
@@ -21,33 +21,29 @@ export default function TercerosPage() {
     archivo: null as File | null
   })
 
+  // Búsqueda en tiempo real usando API Route
   useEffect(() => {
-    const loadProcesses = () => {
-      try {
-        const allProcesses = getProcesses()
-        setProcesses(allProcesses)
-      } catch (error) {
-        console.error('Error loading processes:', error)
-        setProcesses([])
+    const performSearch = async () => {
+      if (searchTerm.length >= 3) {
+        try {
+          const params = new URLSearchParams()
+          params.append('numero_causa', searchTerm)
+
+          const response = await fetch(`/api/processes/search?${params.toString()}`)
+          if (!response.ok) throw new Error('Error fetching processes')
+          const results = await response.json()
+
+          setSearchResults(results)
+        } catch (error) {
+          console.error('Error searching processes:', error)
+          setSearchResults([])
+        }
+      } else {
+        setSearchResults([])
       }
     }
-
-    loadProcesses()
-  }, [])
-
-  useEffect(() => {
-    if (searchTerm.length >= 1) {
-      const results = processes.filter(process =>
-        process.numero_causa.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        process.actor.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        process.demandado.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        process.asunto.toLowerCase().includes(searchTerm.toLowerCase())
-      )
-      setSearchResults(results)
-    } else {
-      setSearchResults([])
-    }
-  }, [searchTerm, processes])
+    performSearch()
+  }, [searchTerm])
 
   const tiposTercero = [
     { value: 'perito', label: 'Perito' },
@@ -78,7 +74,7 @@ export default function TercerosPage() {
         e.target.value = ''
         return
       }
-      
+
       // Validar tamaño (máximo 10MB)
       const maxSize = 10 * 1024 * 1024 // 10MB
       if (file.size > maxSize) {
@@ -86,19 +82,19 @@ export default function TercerosPage() {
         e.target.value = ''
         return
       }
-      
+
       setTerceroData(prev => ({ ...prev, archivo: file }))
     }
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    
+
     // Confirmación de seguridad
     if (!confirm(`¿Está seguro de que desea enviar este escrito como tercero?\n\nProceso: ${selectedProcess?.numero_causa}\nTítulo: ${terceroData.titulo}\n\nEsta acción no se puede deshacer.`)) {
       return
     }
-    
+
     setIsSubmitting(true)
 
     try {
@@ -147,8 +143,8 @@ export default function TercerosPage() {
         tipo: 'escrito' as const,
         titulo: `Escrito de Tercero - ${terceroData.titulo}`,
         contenido: `Escrito presentado por ${terceroData.tipo_tercero}: ${terceroData.nombre_tercero}\n\n${terceroData.contenido}`,
-        creado_por: `${terceroData.nombre_tercero} (${terceroData.tipo_tercero})`,
-        archivo_url: archivoBase64, // Guardar archivo como base64
+        creado_por: user?.id || '',
+        archivo_url: archivoBase64 || undefined, // Guardar archivo como base64
         metadata: {
           es_tercero: true,
           tipo_tercero: terceroData.tipo_tercero,
@@ -165,7 +161,21 @@ export default function TercerosPage() {
       }
 
       // Crear la actividad
-      const newActivity = createActivity(actividadData)
+      // Crear la actividad usando API Route
+      const response = await fetch('/api/activities/create', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(actividadData),
+      })
+
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw new Error(errorData.error || 'Error al crear escrito de tercero')
+      }
+
+      const newActivity = await response.json()
 
       console.log('Escrito de tercero creado:', newActivity)
       alert(`Escrito de tercero ingresado exitosamente en el proceso ${selectedProcess.numero_causa}`)
@@ -204,7 +214,7 @@ export default function TercerosPage() {
                   </h1>
                 </div>
               </div>
-              
+
               <div className="flex items-center gap-4">
                 <a
                   href="/"

@@ -21,3 +21,6 @@ export const supabaseAdmin = createClient(supabaseUrl, supabaseServiceRoleKey, {
     persistSession: false
   }
 })
+
+// Debug: log service role key presence
+console.log('Supabase Service Role Key provided:', !!supabaseServiceRoleKey)

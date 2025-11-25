@@ -5,7 +5,6 @@ import { Search, Upload, FileText, Save, Plus, X } from 'lucide-react'
 import Sidebar from '@/components/Sidebar'
 import MobileHeader from '@/components/MobileHeader'
 import { useUser } from '@/app/providers'
-import { getProcesses, searchProcesses } from '@/lib/storage'
 import { uploadFileToSupabase, validateFile } from '@/lib/supabase-storage-utils'
 import { notifyNuevaActividad } from '@/lib/telegram-notifications'
 
@@ -26,30 +25,29 @@ export default function EscritosPage() {
     archivo: null as File | null
   })
 
-  // Búsqueda en tiempo real
+  // Búsqueda en tiempo real usando API Route - todos los abogados pueden ver todas las causas
   useEffect(() => {
-    if (searchTerm.length >= 3) {
-      const filters: any = {
-        numero_causa: searchTerm
-      }
-      
-      // Si el usuario es abogado, filtrar solo sus causas
-      if (user?.role === 'abogado') {
-        if (user?.email) {
-          filters.abogado_email = user.email
+    const performSearch = async () => {
+      if (searchTerm.length >= 3) {
+        try {
+          const params = new URLSearchParams()
+          params.append('numero_causa', searchTerm)
+
+          const response = await fetch(`/api/processes/search?${params.toString()}`)
+          if (!response.ok) throw new Error('Error fetching processes')
+          const results = await response.json()
+
+          setSearchResults(results)
+        } catch (error) {
+          console.error('Error searching processes:', error)
+          setSearchResults([])
         }
-        // También buscar por nombre por si el email no coincide exactamente
-        if (user?.name) {
-          filters.abogado_name = user.name
-        }
+      } else {
+        setSearchResults([])
       }
-      
-      const results = searchProcesses(filters)
-      setSearchResults(results)
-    } else {
-      setSearchResults([])
     }
-  }, [searchTerm, user])
+    performSearch()
+  }, [searchTerm])
 
   // Cerrar dropdown al hacer clic fuera o presionar Escape
   useEffect(() => {
@@ -68,7 +66,7 @@ export default function EscritosPage() {
 
     document.addEventListener('mousedown', handleClickOutside)
     document.addEventListener('keydown', handleKeyDown)
-    
+
     return () => {
       document.removeEventListener('mousedown', handleClickOutside)
       document.removeEventListener('keydown', handleKeyDown)
@@ -97,7 +95,7 @@ export default function EscritosPage() {
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (file && file.type === 'application/pdf') {
-      setEscritoData({...escritoData, archivo: file})
+      setEscritoData({ ...escritoData, archivo: file })
     } else {
       alert('Solo se permiten archivos PDF')
     }
@@ -105,12 +103,12 @@ export default function EscritosPage() {
 
   const handleSubmitEscrito = async (e: React.FormEvent) => {
     e.preventDefault()
-    
+
     // Confirmación de seguridad
     if (!confirm(`¿Está seguro de que desea enviar este escrito?\n\nTipo: ${escritoData.tipo_petitorio}\nTítulo: ${escritoData.titulo}\n\nEsta acción no se puede deshacer.`)) {
       return
     }
-    
+
     setIsSubmitting(true)
 
     try {
@@ -140,7 +138,7 @@ export default function EscritosPage() {
         titulo: escritoData.titulo,
         contenido: escritoData.contenido,
         archivo_url: archivoUrl,
-        creado_por: user?.name || 'Usuario',
+        creado_por: user?.id || 'unknown',
         fecha_creacion: new Date().toISOString(),
         metadata: {
           tipo_petitorio: escritoData.tipo_petitorio,
@@ -161,34 +159,24 @@ export default function EscritosPage() {
         }
       }
 
-      // Obtener todos los procesos
-      const procesos = getProcesses()
-      
-      // Encontrar el proceso y expediente correspondiente
-      const procesoIndex = procesos.findIndex(p => p.id === selectedProcess.id)
-      if (procesoIndex === -1) {
-        throw new Error('Proceso no encontrado')
+      // Crear la actividad usando API Route
+      const response = await fetch('/api/activities/create', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(nuevaActividad),
+      })
+
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw new Error(errorData.error || 'Error al crear actividad')
       }
 
-      const expedienteIndex = procesos[procesoIndex].expedientes?.findIndex(
-        e => e.id === selectedExpediente.id
-      )
-      if (expedienteIndex === -1 || expedienteIndex === undefined || !procesos[procesoIndex].expedientes) {
-        throw new Error('Expediente no encontrado')
-      }
-
-      // Agregar la actividad al expediente
-      procesos[procesoIndex].expedientes[expedienteIndex].actividades.push(nuevaActividad)
-      
-      // Actualizar la fecha de actualización del proceso
-      procesos[procesoIndex].fecha_actualizacion = new Date().toISOString()
-
-      // Guardar en localStorage
-      localStorage.setItem('satje_processes', JSON.stringify(procesos))
-      
-      console.log('Escrito guardado exitosamente:', nuevaActividad)
+      const savedActivity = await response.json()
+      console.log('Escrito guardado exitosamente:', savedActivity)
       alert(`${escritoData.tipo_petitorio} guardado exitosamente`)
-      
+
       // Enviar notificación de Telegram al juez
       try {
         await notifyNuevaActividad({
@@ -205,11 +193,11 @@ export default function EscritosPage() {
         console.error('Error enviando notificación de Telegram:', error)
         // No mostrar error al usuario, solo log
       }
-      
+
       setIsSubmitting(false)
       setShowCreateForm(false)
       setEscritoData({ titulo: '', tipo_petitorio: '', contenido: '', calidad: '', archivo: null })
-      
+
     } catch (error) {
       console.error('Error al guardar escrito:', error)
       alert('Error al guardar el escrito')
@@ -221,13 +209,13 @@ export default function EscritosPage() {
     <div className="min-h-screen bg-judicial-50">
       {/* Mobile Header */}
       <MobileHeader onMenuClick={() => setIsSidebarOpen(true)} />
-      
+
       <div className="flex">
-        <Sidebar 
-          isOpen={isSidebarOpen} 
-          onClose={() => setIsSidebarOpen(false)} 
+        <Sidebar
+          isOpen={isSidebarOpen}
+          onClose={() => setIsSidebarOpen(false)}
         />
-        
+
         <div className="flex-1 lg:ml-64">
           <div className="p-8">
             {/* Header */}
@@ -248,7 +236,7 @@ export default function EscritosPage() {
                   Seleccionar Proceso
                 </h2>
               </div>
-              
+
               <div className="relative search-dropdown">
                 <input
                   type="text"
@@ -257,7 +245,7 @@ export default function EscritosPage() {
                   onChange={(e) => setSearchTerm(e.target.value)}
                   className="input-field w-full"
                 />
-                
+
                 {/* Resultados de búsqueda en tiempo real */}
                 {searchResults.length > 0 && (
                   <div className="absolute z-10 w-full mt-1 bg-white border border-judicial-200 rounded-lg shadow-lg max-h-60 overflow-y-auto">
@@ -302,20 +290,20 @@ export default function EscritosPage() {
                       <span className="font-medium text-green-800">Demandado:</span>
                       <p className="text-green-700">{selectedProcess.demandado}</p>
                     </div>
-              <div>
-                <span className="font-medium text-green-800">Fecha de Inicio:</span>
-                <p className="text-green-700">
-                  {new Date(selectedProcess.fecha_creacion).toLocaleString('es-EC', {
-                    year: 'numeric',
-                    month: 'long',
-                    day: 'numeric',
-                    hour: '2-digit',
-                    minute: '2-digit',
-                    second: '2-digit',
-                    hour12: false
-                  })}
-                </p>
-              </div>
+                    <div>
+                      <span className="font-medium text-green-800">Fecha de Inicio:</span>
+                      <p className="text-green-700">
+                        {new Date(selectedProcess.fecha_creacion).toLocaleString('es-EC', {
+                          year: 'numeric',
+                          month: 'long',
+                          day: 'numeric',
+                          hour: '2-digit',
+                          minute: '2-digit',
+                          second: '2-digit',
+                          hour12: false
+                        })}
+                      </p>
+                    </div>
                     <div>
                       <span className="font-medium text-green-800">Lugar:</span>
                       <p className="text-green-700">{selectedProcess.lugar}</p>
@@ -333,11 +321,10 @@ export default function EscritosPage() {
                           <button
                             key={expediente.id}
                             onClick={() => setSelectedExpediente(expediente)}
-                            className={`p-3 rounded-lg border text-left transition-colors ${
-                              selectedExpediente?.id === expediente.id
-                                ? 'border-green-500 bg-green-100 text-green-900'
-                                : 'border-green-200 bg-white hover:bg-green-50'
-                            }`}
+                            className={`p-3 rounded-lg border text-left transition-colors ${selectedExpediente?.id === expediente.id
+                              ? 'border-green-500 bg-green-100 text-green-900'
+                              : 'border-green-200 bg-white hover:bg-green-50'
+                              }`}
                           >
                             <div className="font-medium">
                               Expediente {expediente.numero_expediente}
@@ -362,7 +349,7 @@ export default function EscritosPage() {
                       className="btn-primary flex items-center gap-2"
                     >
                       <Plus className="h-4 w-4" />
-                      Ingresar Escrito en {selectedExpediente.instancia === 'primera' ? 'Primera Instancia' : 
+                      Ingresar Escrito en {selectedExpediente.instancia === 'primera' ? 'Primera Instancia' :
                         selectedExpediente.instancia === 'segunda' ? 'Segunda Instancia' : 'Tercera Instancia'}
                     </button>
                   )}
@@ -396,7 +383,7 @@ export default function EscritosPage() {
                       </label>
                       <select
                         value={escritoData.tipo_petitorio}
-                        onChange={(e) => setEscritoData({...escritoData, tipo_petitorio: e.target.value})}
+                        onChange={(e) => setEscritoData({ ...escritoData, tipo_petitorio: e.target.value })}
                         className="input-field"
                         required
                       >
@@ -413,7 +400,7 @@ export default function EscritosPage() {
                       </label>
                       <select
                         value={escritoData.calidad}
-                        onChange={(e) => setEscritoData({...escritoData, calidad: e.target.value})}
+                        onChange={(e) => setEscritoData({ ...escritoData, calidad: e.target.value })}
                         className="input-field"
                         required
                       >
@@ -433,7 +420,7 @@ export default function EscritosPage() {
                     <input
                       type="text"
                       value={escritoData.titulo}
-                      onChange={(e) => setEscritoData({...escritoData, titulo: e.target.value})}
+                      onChange={(e) => setEscritoData({ ...escritoData, titulo: e.target.value })}
                       placeholder={`Ingrese el título del ${escritoData.tipo_petitorio || 'documento'}...`}
                       className="input-field"
                       required
@@ -447,15 +434,15 @@ export default function EscritosPage() {
                     </label>
                     <textarea
                       value={escritoData.contenido}
-                      onChange={(e) => setEscritoData({...escritoData, contenido: e.target.value})}
+                      onChange={(e) => setEscritoData({ ...escritoData, contenido: e.target.value })}
                       placeholder={
-                        escritoData.tipo_petitorio === 'Escrito' 
+                        escritoData.tipo_petitorio === 'Escrito'
                           ? 'Escriba aquí el contenido del escrito...'
                           : escritoData.tipo_petitorio === 'Oficio'
-                          ? 'Escriba aquí el contenido del oficio...'
-                          : escritoData.tipo_petitorio === 'Anexos'
-                          ? 'Describa los anexos que se adjuntan...'
-                          : 'Escriba aquí el contenido del documento...'
+                            ? 'Escriba aquí el contenido del oficio...'
+                            : escritoData.tipo_petitorio === 'Anexos'
+                              ? 'Describa los anexos que se adjuntan...'
+                              : 'Escriba aquí el contenido del documento...'
                       }
                       className="input-field h-40 resize-none"
                     />
@@ -521,29 +508,29 @@ export default function EscritosPage() {
                       <div>
                         <span className="font-medium text-judicial-700">Expediente:</span>
                         <p className="text-judicial-600">
-                          {selectedExpediente.instancia === 'primera' ? 'Primera Instancia' : 
-                           selectedExpediente.instancia === 'segunda' ? 'Segunda Instancia (Apelación)' : 
-                           'Tercera Instancia (Casación)'}
+                          {selectedExpediente.instancia === 'primera' ? 'Primera Instancia' :
+                            selectedExpediente.instancia === 'segunda' ? 'Segunda Instancia (Apelación)' :
+                              'Tercera Instancia (Casación)'}
                         </p>
                       </div>
                       <div>
                         <span className="font-medium text-judicial-700">Actividades existentes:</span>
                         <p className="text-judicial-600">{selectedExpediente.actividades.length}</p>
                       </div>
-              <div>
-                <span className="font-medium text-judicial-700">Fecha del Expediente:</span>
-                <p className="text-judicial-600">
-                  {new Date(selectedExpediente.fecha_creacion).toLocaleString('es-EC', {
-                    year: 'numeric',
-                    month: 'long',
-                    day: 'numeric',
-                    hour: '2-digit',
-                    minute: '2-digit',
-                    second: '2-digit',
-                    hour12: false
-                  })}
-                </p>
-              </div>
+                      <div>
+                        <span className="font-medium text-judicial-700">Fecha del Expediente:</span>
+                        <p className="text-judicial-600">
+                          {new Date(selectedExpediente.fecha_creacion).toLocaleString('es-EC', {
+                            year: 'numeric',
+                            month: 'long',
+                            day: 'numeric',
+                            hour: '2-digit',
+                            minute: '2-digit',
+                            second: '2-digit',
+                            hour12: false
+                          })}
+                        </p>
+                      </div>
                     </div>
                   </div>
 

@@ -1,10 +1,10 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { 
-  Scale, 
-  Plus, 
-  Save, 
+import {
+  Scale,
+  Plus,
+  Save,
   X,
   Search,
   FileText,
@@ -17,18 +17,19 @@ import {
 } from 'lucide-react'
 import Sidebar from '@/components/Sidebar'
 import MobileHeader from '@/components/MobileHeader'
-import { getProcesses, createActivity } from '@/lib/simple-storage'
+import { getProcesses, createActivity, createExpediente } from '@/lib/storage'
+import { useUser } from '@/app/providers'
 
 export default function InstanciasPage() {
+  const { user } = useUser()
   const [showForm, setShowForm] = useState(false)
   const [searchTerm, setSearchTerm] = useState('')
   const [searchResults, setSearchResults] = useState<any[]>([])
   const [selectedProcess, setSelectedProcess] = useState<any>(null)
   const [isSubmitting, setIsSubmitting] = useState(false)
-  const [processes, setProcesses] = useState<any[]>([])
   const [selectedInstance, setSelectedInstance] = useState<'segunda' | 'tercera'>('segunda')
   const [isSidebarOpen, setIsSidebarOpen] = useState(false)
-  
+
   const [formData, setFormData] = useState({
     proceso_id: '',
     expediente_id: ''
@@ -58,37 +59,29 @@ export default function InstanciasPage() {
     'Otros'
   ]
 
+  // Búsqueda en tiempo real usando API Route
   useEffect(() => {
-    const loadProcesses = () => {
-      try {
-        const allProcesses = getProcesses()
-        setProcesses(allProcesses)
-      } catch (error) {
-        console.error('Error loading processes:', error)
-        setProcesses([])
+    const performSearch = async () => {
+      if (searchTerm.length >= 3) {
+        try {
+          const params = new URLSearchParams()
+          params.append('numero_causa', searchTerm)
+
+          const response = await fetch(`/api/processes/search?${params.toString()}`)
+          if (!response.ok) throw new Error('Error fetching processes')
+          const results = await response.json()
+
+          setSearchResults(results)
+        } catch (error) {
+          console.error('Error searching processes:', error)
+          setSearchResults([])
+        }
+      } else {
+        setSearchResults([])
       }
     }
-
-    loadProcesses()
-  }, [])
-
-  // Búsqueda de procesos
-  useEffect(() => {
-    if (searchTerm.length >= 1) {
-      const filtered = processes.filter(process => {
-        const searchLower = searchTerm.toLowerCase()
-        return (
-          (process.numero_causa && process.numero_causa.toLowerCase().includes(searchLower)) ||
-          (process.actor && process.actor.toLowerCase().includes(searchLower)) ||
-          (process.demandado && process.demandado.toLowerCase().includes(searchLower)) ||
-          (process.asunto && process.asunto.toLowerCase().includes(searchLower))
-        )
-      })
-      setSearchResults(filtered)
-    } else {
-      setSearchResults([])
-    }
-  }, [searchTerm, processes])
+    performSearch()
+  }, [searchTerm])
 
   // Cerrar dropdown al hacer clic fuera
   useEffect(() => {
@@ -107,7 +100,7 @@ export default function InstanciasPage() {
 
     document.addEventListener('mousedown', handleClickOutside)
     document.addEventListener('keydown', handleKeyDown)
-    
+
     return () => {
       document.removeEventListener('mousedown', handleClickOutside)
       document.removeEventListener('keydown', handleKeyDown)
@@ -118,7 +111,7 @@ export default function InstanciasPage() {
     setSelectedProcess(process)
     setSearchTerm(process.numero_causa)
     setSearchResults([])
-    
+
     // Generar título con fecha y hora actual
     const now = new Date()
     const fechaHora = now.toLocaleString('es-EC', {
@@ -129,9 +122,9 @@ export default function InstanciasPage() {
       minute: '2-digit',
       second: '2-digit'
     })
-    
+
     const instanciaText = selectedInstance === 'segunda' ? 'Segunda Instancia' : 'Tercera Instancia Extraordinaria'
-    
+
     setFormData(prev => ({
       ...prev,
       proceso_id: process.id,
@@ -155,7 +148,7 @@ export default function InstanciasPage() {
         e.target.value = ''
         return
       }
-      
+
       // Validar tamaño (máximo 10MB)
       const maxSize = 10 * 1024 * 1024 // 10MB
       if (file.size > maxSize) {
@@ -163,7 +156,7 @@ export default function InstanciasPage() {
         e.target.value = ''
         return
       }
-      
+
       setFormData(prev => ({ ...prev, archivo: file }))
     }
   }
@@ -181,13 +174,13 @@ export default function InstanciasPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    
+
     // Confirmación de seguridad
     const instanciaText = selectedInstance === 'segunda' ? 'Segunda Instancia' : 'Tercera Instancia'
     if (!confirm(`¿Está seguro de que desea aperturar la ${instanciaText}?\n\nProceso: ${selectedProcess?.numero_causa}\n\nEsta acción creará una nueva instancia judicial.`)) {
       return
     }
-    
+
     setIsSubmitting(true)
 
     try {
@@ -198,7 +191,7 @@ export default function InstanciasPage() {
       // Verificar si la instancia ya existe
       const instanciaText = selectedInstance === 'segunda' ? 'segunda' : 'tercera'
       const instanciaExistente = selectedProcess.expedientes?.find((exp: any) => exp.instancia === instanciaText)
-      
+
       if (instanciaExistente) {
         alert(`La ${selectedInstance === 'segunda' ? 'Segunda Instancia' : 'Tercera Instancia Extraordinaria'} ya existe para este proceso.`)
         setIsSubmitting(false)
@@ -207,30 +200,15 @@ export default function InstanciasPage() {
 
       // Crear nuevo expediente para la instancia
       const numeroExpediente = selectedProcess.expedientes ? selectedProcess.expedientes.length + 1 : 1
-      
-      const nuevoExpediente = {
-        id: `exp-${selectedProcess.id}-${numeroExpediente}`,
+
+      const nuevoExpediente = await createExpediente({
         proceso_id: selectedProcess.id,
         numero_expediente: numeroExpediente,
         instancia: instanciaText as 'segunda' | 'tercera',
-        estado: 'activo' as const,
-        fecha_creacion: new Date().toISOString(),
-        actividades: []
-      }
+        estado: 'activo' as const
+      })
 
-      // Agregar el nuevo expediente al proceso
-      const allProcesses = getProcesses()
-      const processIndex = allProcesses.findIndex(p => p.id === selectedProcess.id)
-      
-      if (processIndex !== -1) {
-        if (!allProcesses[processIndex].expedientes) {
-          allProcesses[processIndex].expedientes = []
-        }
-        allProcesses[processIndex].expedientes.push(nuevoExpediente)
-        
-        // Guardar cambios
-        localStorage.setItem('satje_processes', JSON.stringify(allProcesses))
-      }
+      if (!nuevoExpediente) throw new Error('Error al crear expediente')
 
       // Crear actividad de apertura
       const actividadData = {
@@ -238,7 +216,7 @@ export default function InstanciasPage() {
         tipo: 'otros' as const,
         titulo: `Apertura de ${selectedInstance === 'segunda' ? 'Segunda Instancia' : 'Tercera Instancia Extraordinaria'}`,
         contenido: `Se apertura la ${selectedInstance === 'segunda' ? 'Segunda Instancia' : 'Tercera Instancia Extraordinaria'} para el proceso ${selectedProcess.numero_causa}`,
-        creado_por: 'Juez del Sistema',
+        creado_por: user?.id || '',
         metadata: {
           es_apertura_instancia: true,
           nivel_instancia: selectedInstance,
@@ -247,11 +225,25 @@ export default function InstanciasPage() {
       }
 
       // Crear la actividad
-      const newActivity = createActivity(actividadData)
+      // Crear la actividad usando API Route
+      const response = await fetch('/api/activities/create', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(actividadData),
+      })
+
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw new Error(errorData.error || 'Error al crear actividad')
+      }
+
+      const newActivity = await response.json()
 
       console.log('Instancia creada:', newActivity)
       alert(`${selectedInstance === 'segunda' ? 'Segunda Instancia' : 'Tercera Instancia Extraordinaria'} aperturada exitosamente`)
-      
+
       setIsSubmitting(false)
       setShowForm(false)
       setFormData({
@@ -260,7 +252,7 @@ export default function InstanciasPage() {
       })
       setSelectedProcess(null)
       setSearchTerm('')
-      
+
     } catch (error) {
       console.error('Error al crear instancia:', error)
       alert(error instanceof Error ? error.message : 'Error al crear la instancia')
@@ -272,13 +264,13 @@ export default function InstanciasPage() {
     <div className="min-h-screen bg-judicial-50">
       {/* Mobile Header */}
       <MobileHeader onMenuClick={() => setIsSidebarOpen(true)} />
-      
+
       <div className="flex">
-        <Sidebar 
-          isOpen={isSidebarOpen} 
-          onClose={() => setIsSidebarOpen(false)} 
+        <Sidebar
+          isOpen={isSidebarOpen}
+          onClose={() => setIsSidebarOpen(false)}
         />
-        
+
         <div className="flex-1 lg:ml-64">
           <div className="p-8">
             {/* Header */}
@@ -302,11 +294,10 @@ export default function InstanciasPage() {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <button
                   onClick={() => handleInstanceChange('segunda')}
-                  className={`p-4 rounded-lg border-2 transition-colors ${
-                    selectedInstance === 'segunda'
-                      ? 'border-primary-500 bg-primary-50 text-primary-900'
-                      : 'border-judicial-200 hover:border-judicial-300'
-                  }`}
+                  className={`p-4 rounded-lg border-2 transition-colors ${selectedInstance === 'segunda'
+                    ? 'border-primary-500 bg-primary-50 text-primary-900'
+                    : 'border-judicial-200 hover:border-judicial-300'
+                    }`}
                 >
                   <div className="flex items-center gap-3 mb-2">
                     <ArrowUp className="h-5 w-5" />
@@ -319,11 +310,10 @@ export default function InstanciasPage() {
 
                 <button
                   onClick={() => handleInstanceChange('tercera')}
-                  className={`p-4 rounded-lg border-2 transition-colors ${
-                    selectedInstance === 'tercera'
-                      ? 'border-primary-500 bg-primary-50 text-primary-900'
-                      : 'border-judicial-200 hover:border-judicial-300'
-                  }`}
+                  className={`p-4 rounded-lg border-2 transition-colors ${selectedInstance === 'tercera'
+                    ? 'border-primary-500 bg-primary-50 text-primary-900'
+                    : 'border-judicial-200 hover:border-judicial-300'
+                    }`}
                 >
                   <div className="flex items-center gap-3 mb-2">
                     <Gavel className="h-5 w-5" />
@@ -374,7 +364,7 @@ export default function InstanciasPage() {
                   </div>
                 )}
               </div>
-              
+
               {selectedProcess && (
                 <div className="mt-4 p-3 bg-green-50 border border-green-200 rounded-lg">
                   <h4 className="font-medium text-green-900 mb-2">Proceso Seleccionado</h4>
@@ -465,7 +455,7 @@ export default function InstanciasPage() {
                       <h4 className="font-medium text-blue-900">Confirmación de Apertura</h4>
                     </div>
                     <p className="text-blue-700 text-sm">
-                      Se creará la {selectedInstance === 'segunda' ? 'Segunda Instancia' : 'Tercera Instancia Extraordinaria'} para este proceso. 
+                      Se creará la {selectedInstance === 'segunda' ? 'Segunda Instancia' : 'Tercera Instancia Extraordinaria'} para este proceso.
                       Una vez aperturada, podrá crear providencias y actuaciones específicas para esta instancia.
                     </p>
                   </div>

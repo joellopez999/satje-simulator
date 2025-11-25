@@ -1,10 +1,10 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { 
-  FileText, 
-  Plus, 
-  Save, 
+import {
+  FileText,
+  Plus,
+  Save,
   X,
   Search,
   Calendar,
@@ -16,7 +16,6 @@ import {
 } from 'lucide-react'
 import Sidebar from '@/components/Sidebar'
 import MobileHeader from '@/components/MobileHeader'
-import { getProcesses, createActivity } from '@/lib/simple-storage'
 import { uploadFileToSupabase, validateFile } from '@/lib/supabase-storage-utils'
 import { useUser } from '@/app/providers'
 
@@ -29,8 +28,7 @@ export default function SecretariaPage() {
   const [selectedInstance, setSelectedInstance] = useState<string>('')
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [isSidebarOpen, setIsSidebarOpen] = useState(false)
-  const [processes, setProcesses] = useState<any[]>([])
-  
+
   const [formData, setFormData] = useState({
     tipo_actuacion: '',
     titulo: '',
@@ -53,37 +51,29 @@ export default function SecretariaPage() {
     'Otros'
   ]
 
+  // Búsqueda en tiempo real usando API Route
   useEffect(() => {
-    const loadProcesses = () => {
-      try {
-        const allProcesses = getProcesses()
-        setProcesses(allProcesses)
-      } catch (error) {
-        console.error('Error loading processes:', error)
-        setProcesses([])
+    const performSearch = async () => {
+      if (searchTerm.length >= 3) {
+        try {
+          const params = new URLSearchParams()
+          params.append('numero_causa', searchTerm)
+
+          const response = await fetch(`/api/processes/search?${params.toString()}`)
+          if (!response.ok) throw new Error('Error fetching processes')
+          const results = await response.json()
+
+          setSearchResults(results)
+        } catch (error) {
+          console.error('Error searching processes:', error)
+          setSearchResults([])
+        }
+      } else {
+        setSearchResults([])
       }
     }
-
-    loadProcesses()
-  }, [])
-
-  // Búsqueda de procesos
-  useEffect(() => {
-    if (searchTerm.length >= 1) {
-      const filtered = processes.filter(process => {
-        const searchLower = searchTerm.toLowerCase()
-        return (
-          (process.numero_causa && process.numero_causa.toLowerCase().includes(searchLower)) ||
-          (process.actor && process.actor.toLowerCase().includes(searchLower)) ||
-          (process.demandado && process.demandado.toLowerCase().includes(searchLower)) ||
-          (process.asunto && process.asunto.toLowerCase().includes(searchLower))
-        )
-      })
-      setSearchResults(filtered)
-    } else {
-      setSearchResults([])
-    }
-  }, [searchTerm, processes])
+    performSearch()
+  }, [searchTerm])
 
   // Cerrar dropdown al hacer clic fuera
   useEffect(() => {
@@ -102,7 +92,7 @@ export default function SecretariaPage() {
 
     document.addEventListener('mousedown', handleClickOutside)
     document.addEventListener('keydown', handleKeyDown)
-    
+
     return () => {
       document.removeEventListener('mousedown', handleClickOutside)
       document.removeEventListener('keydown', handleKeyDown)
@@ -114,7 +104,7 @@ export default function SecretariaPage() {
     setSearchTerm(process.numero_causa)
     setSearchResults([])
     setSelectedInstance('') // Reset instance selection
-    
+
     // Generar título con fecha y hora actual
     const now = new Date()
     const fechaHora = now.toLocaleString('es-EC', {
@@ -125,7 +115,7 @@ export default function SecretariaPage() {
       minute: '2-digit',
       second: '2-digit'
     })
-    
+
     setFormData(prev => ({
       ...prev,
       proceso_id: process.id,
@@ -160,25 +150,25 @@ export default function SecretariaPage() {
         maxSize: 10 * 1024 * 1024, // 10MB
         allowedTypes: ['application/pdf']
       })
-      
+
       if (!validation.valid) {
         alert(validation.error)
         e.target.value = ''
         return
       }
-      
+
       setFormData(prev => ({ ...prev, archivo: file }))
     }
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    
+
     // Confirmación de seguridad
     if (!confirm(`¿Está seguro de que desea crear esta actuación de secretaría?\n\nTipo: ${formData.tipo_actuacion}\nTítulo: ${formData.titulo}\n\nEsta acción no se puede deshacer.`)) {
       return
     }
-    
+
     setIsSubmitting(true)
 
     try {
@@ -200,13 +190,13 @@ export default function SecretariaPage() {
             'satje-files',
             'actividades'
           )
-          
+
           if (!uploadResult.success) {
             alert(`Error al subir archivo: ${uploadResult.error}`)
             setIsSubmitting(false)
             return
           }
-          
+
           archivoUrl = uploadResult.url
         } catch (error) {
           console.error('Error al procesar archivo:', error)
@@ -221,8 +211,8 @@ export default function SecretariaPage() {
         tipo: 'razon' as const,
         titulo: formData.titulo,
         contenido: formData.contenido,
-        archivo_url: archivoUrl,
-        creado_por: user?.name || 'Secretario del Sistema',
+        archivo_url: archivoUrl || undefined,
+        creado_por: user?.id || '',
         metadata: {
           tipo_actuacion: formData.tipo_actuacion,
           proceso_id: formData.proceso_id,
@@ -243,11 +233,25 @@ export default function SecretariaPage() {
       }
 
       // Crear la actividad
-      const newActivity = createActivity(actividadData)
+      // Crear la actividad usando API Route
+      const response = await fetch('/api/activities/create', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(actividadData),
+      })
+
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw new Error(errorData.error || 'Error al crear actuación')
+      }
+
+      const newActivity = await response.json()
 
       console.log('Actuación de secretaría creada:', newActivity)
       alert('Actuación de secretaría registrada exitosamente')
-      
+
       setIsSubmitting(false)
       setShowForm(false)
       setFormData({
@@ -260,7 +264,7 @@ export default function SecretariaPage() {
       })
       setSelectedProcess(null)
       setSearchTerm('')
-      
+
     } catch (error) {
       console.error('Error al crear actuación:', error)
       alert(error instanceof Error ? error.message : 'Error al crear la actuación')
@@ -272,13 +276,13 @@ export default function SecretariaPage() {
     <div className="min-h-screen bg-judicial-50">
       {/* Mobile Header */}
       <MobileHeader onMenuClick={() => setIsSidebarOpen(true)} />
-      
+
       <div className="flex">
-        <Sidebar 
-          isOpen={isSidebarOpen} 
-          onClose={() => setIsSidebarOpen(false)} 
+        <Sidebar
+          isOpen={isSidebarOpen}
+          onClose={() => setIsSidebarOpen(false)}
         />
-        
+
         <div className="flex-1 lg:ml-64">
           <div className="p-8">
             {/* Header */}
@@ -332,7 +336,7 @@ export default function SecretariaPage() {
                   </div>
                 )}
               </div>
-              
+
               {selectedProcess && (
                 <div className="mt-4 p-3 bg-green-50 border border-green-200 rounded-lg">
                   <h4 className="font-medium text-green-900 mb-2">Proceso Seleccionado</h4>
@@ -496,7 +500,7 @@ export default function SecretariaPage() {
                           <p className="text-judicial-700">{selectedProcess.asunto}</p>
                         </div>
                       </div>
-                      
+
                       {/* Selección de Instancia */}
                       <div>
                         <label className="block text-sm font-medium text-judicial-700 mb-2">
@@ -511,10 +515,10 @@ export default function SecretariaPage() {
                           <option value="">Seleccionar instancia</option>
                           {selectedProcess.expedientes?.map((expediente: any) => (
                             <option key={expediente.id} value={expediente.id}>
-                              {expediente.instancia === 'primera' ? 'PRIMER NIVEL' : 
-                               expediente.instancia === 'segunda' ? 'SEGUNDO NIVEL' : 
-                               expediente.instancia === 'tercera' ? 'TERCER NIVEL' : 
-                               expediente.instancia}
+                              {expediente.instancia === 'primera' ? 'PRIMER NIVEL' :
+                                expediente.instancia === 'segunda' ? 'SEGUNDO NIVEL' :
+                                  expediente.instancia === 'tercera' ? 'TERCER NIVEL' :
+                                    expediente.instancia}
                             </option>
                           ))}
                         </select>

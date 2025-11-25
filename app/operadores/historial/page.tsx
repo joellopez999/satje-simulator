@@ -1,11 +1,11 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { 
-  History, 
-  FileText, 
-  Calendar, 
-  Search, 
+import {
+  History,
+  FileText,
+  Calendar,
+  Search,
   Filter,
   Eye,
   CheckCircle,
@@ -15,7 +15,7 @@ import {
 } from 'lucide-react'
 import Sidebar from '@/components/Sidebar'
 import MobileHeader from '@/components/MobileHeader'
-import { getProcesses } from '@/lib/simple-storage'
+import { getProcesses } from '@/lib/storage'
 
 export default function HistorialPage() {
   const [processes, setProcesses] = useState<any[]>([])
@@ -26,9 +26,11 @@ export default function HistorialPage() {
   const [filterPeriodo, setFilterPeriodo] = useState<'todos' | '7dias' | '30dias' | '90dias'>('todos')
 
   useEffect(() => {
-    const loadProcesses = () => {
+    const loadProcesses = async () => {
       try {
-        const allProcesses = getProcesses()
+        const response = await fetch('/api/processes/search')
+        if (!response.ok) throw new Error('Error fetching processes')
+        const allProcesses = await response.json()
         setProcesses(allProcesses)
       } catch (error) {
         console.error('Error loading processes:', error)
@@ -67,7 +69,7 @@ export default function HistorialPage() {
   // Filtrar escritos según los filtros
   const escritosFiltrados = todosLosEscritos.filter(escrito => {
     // Filtro por búsqueda
-    const matchesSearch = searchTerm === '' || 
+    const matchesSearch = searchTerm === '' ||
       escrito.numero_causa.toLowerCase().includes(searchTerm.toLowerCase()) ||
       escrito.titulo.toLowerCase().includes(searchTerm.toLowerCase()) ||
       escrito.actor.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -130,13 +132,13 @@ export default function HistorialPage() {
     <div className="min-h-screen bg-judicial-50">
       {/* Mobile Header */}
       <MobileHeader onMenuClick={() => setIsSidebarOpen(true)} />
-      
+
       <div className="flex">
-        <Sidebar 
-          isOpen={isSidebarOpen} 
-          onClose={() => setIsSidebarOpen(false)} 
+        <Sidebar
+          isOpen={isSidebarOpen}
+          onClose={() => setIsSidebarOpen(false)}
         />
-        
+
         <div className="flex-1 lg:ml-64">
           <div className="p-8">
             {/* Header */}
@@ -160,7 +162,7 @@ export default function HistorialPage() {
                   Filtros de Búsqueda
                 </h2>
               </div>
-              
+
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 {/* Búsqueda por texto */}
                 <div>
@@ -238,7 +240,7 @@ export default function HistorialPage() {
                   Resultados ({escritosFiltrados.length})
                 </h3>
               </div>
-              
+
               {escritosFiltrados.length === 0 ? (
                 <div className="p-8 text-center">
                   <FileText className="h-12 w-12 text-gray-400 mx-auto mb-4" />
@@ -264,7 +266,7 @@ export default function HistorialPage() {
                               {getEstadoTexto(escrito.despachado, escrito.dias_pendiente)}
                             </span>
                           </div>
-                          
+
                           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-3">
                             <div>
                               <p className="text-sm text-gray-600">
@@ -283,7 +285,7 @@ export default function HistorialPage() {
                               </p>
                             </div>
                           </div>
-                          
+
                           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-3">
                             <p className="text-sm text-gray-600">
                               <span className="font-medium">Fecha del escrito:</span> {new Date(escrito.fecha_escrito).toLocaleDateString('es-EC')}
@@ -298,7 +300,7 @@ export default function HistorialPage() {
                               </p>
                             )}
                           </div>
-                          
+
                           {/* Información del usuario creador */}
                           {escrito.usuario_creador && (
                             <div className="mb-3 p-3 bg-blue-50 border border-blue-200 rounded-lg">
@@ -316,21 +318,21 @@ export default function HistorialPage() {
                               </div>
                             </div>
                           )}
-                          
+
                           <p className="text-sm text-gray-700 bg-gray-50 p-3 rounded-lg">
                             {escrito.contenido}
                           </p>
                         </div>
-                        
+
                         <div className="ml-6 flex flex-col gap-2 min-w-0 flex-shrink-0">
-                          <button 
+                          <button
                             onClick={() => alert(`Escrito: ${escrito.titulo}\nContenido: ${escrito.contenido}`)}
                             className="bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-3 rounded-lg transition-colors duration-200 text-xs flex items-center gap-1 whitespace-nowrap"
                           >
                             <Eye className="h-3 w-3" />
                             Ver Escrito
                           </button>
-                          <button 
+                          <button
                             onClick={() => window.open(`/proceso/${processes.find(p => p.numero_causa === escrito.numero_causa)?.id}`, '_blank')}
                             className="bg-purple-600 hover:bg-purple-700 text-white font-medium py-2 px-3 rounded-lg transition-colors duration-200 text-xs whitespace-nowrap"
                           >

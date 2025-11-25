@@ -2,11 +2,11 @@
 
 import { useState, useEffect } from 'react'
 import { useSearchParams } from 'next/navigation'
-import { 
-  Scale, 
-  FileText, 
-  Plus, 
-  Save, 
+import {
+  Scale,
+  FileText,
+  Plus,
+  Save,
   X,
   Search,
   Calendar,
@@ -17,7 +17,7 @@ import {
 import Sidebar from '@/components/Sidebar'
 import MobileHeader from '@/components/MobileHeader'
 import { useUser } from '@/app/providers'
-import { getPendingWritings, getProcesses, createActivity, markWritingAsDispatched } from '@/lib/storage'
+import { getPendingWritings, markWritingAsDispatched } from '@/lib/storage'
 import { uploadFileToSupabase, validateFile } from '@/lib/supabase-storage-utils'
 
 export default function ProvidenciasPage() {
@@ -35,7 +35,7 @@ export default function ProvidenciasPage() {
   const [selectedInstance, setSelectedInstance] = useState<string>('')
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [isSidebarOpen, setIsSidebarOpen] = useState(false)
-  
+
   const [formData, setFormData] = useState({
     titulo: '',
     contenido: '',
@@ -50,7 +50,7 @@ export default function ProvidenciasPage() {
 
   const tiposProvidencia = [
     'Auto de admisión',
-    'Auto de inadmisión', 
+    'Auto de inadmisión',
     'Auto de trámite',
     'Sentencia',
     'Resolución',
@@ -72,31 +72,43 @@ export default function ProvidenciasPage() {
   ]
 
   useEffect(() => {
-    if (searchTerm.length >= 3) {
-      const results = getPendingWritings().filter(writing =>
-        writing.titulo.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        writing.proceso.numero_causa.toLowerCase().includes(searchTerm.toLowerCase())
-      )
-      setSearchResults(results)
-    } else {
-      setSearchResults([])
+    const searchWritings = async () => {
+      if (searchTerm.length >= 3) {
+        const writings = await getPendingWritings()
+        const results = writings.filter(writing =>
+          writing.titulo.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          writing.proceso.numero_causa.toLowerCase().includes(searchTerm.toLowerCase())
+        )
+        setSearchResults(results)
+      } else {
+        setSearchResults([])
+      }
     }
+    searchWritings()
   }, [searchTerm])
 
-  // Búsqueda de procesos para providencias autónomas
+  // Búsqueda de procesos para providencias autónomas usando API Route
   useEffect(() => {
-    if (processSearchTerm.length >= 3) {
-      const processes = getProcesses()
-      const results = processes.filter(process => 
-        process.numero_causa.toLowerCase().includes(processSearchTerm.toLowerCase()) ||
-        process.actor.toLowerCase().includes(processSearchTerm.toLowerCase()) ||
-        process.demandado.toLowerCase().includes(processSearchTerm.toLowerCase()) ||
-        process.asunto.toLowerCase().includes(processSearchTerm.toLowerCase())
-      )
-      setProcessSearchResults(results)
-    } else {
-      setProcessSearchResults([])
+    const searchProcessesFn = async () => {
+      if (processSearchTerm.length >= 3) {
+        try {
+          const params = new URLSearchParams()
+          params.append('numero_causa', processSearchTerm)
+
+          const response = await fetch(`/api/processes/search?${params.toString()}`)
+          if (!response.ok) throw new Error('Error fetching processes')
+          const results = await response.json()
+
+          setProcessSearchResults(results)
+        } catch (error) {
+          console.error('Error searching processes:', error)
+          setProcessSearchResults([])
+        }
+      } else {
+        setProcessSearchResults([])
+      }
     }
+    searchProcessesFn()
   }, [processSearchTerm])
 
   // Cerrar dropdown al hacer clic fuera o presionar Escape
@@ -118,7 +130,7 @@ export default function ProvidenciasPage() {
 
     document.addEventListener('mousedown', handleClickOutside)
     document.addEventListener('keydown', handleKeyDown)
-    
+
     return () => {
       document.removeEventListener('mousedown', handleClickOutside)
       document.removeEventListener('keydown', handleKeyDown)
@@ -133,33 +145,36 @@ export default function ProvidenciasPage() {
 
     if (escritoId && procesoId && expedienteId) {
       // Buscar el escrito en los pendientes
-      const writings = getPendingWritings()
-      const writing = writings.find(w => w.id === escritoId)
-      
-      if (writing) {
-        setSelectedWriting(writing)
-        
-        // Generar título con fecha y hora actual
-        const now = new Date()
-        const fechaHora = now.toLocaleString('es-EC', {
-          year: 'numeric',
-          month: '2-digit',
-          day: '2-digit',
-          hour: '2-digit',
-          minute: '2-digit',
-          second: '2-digit'
-        })
-        
-        setFormData(prev => ({
-          ...prev,
-          proceso_id: procesoId,
-          expediente_id: expedienteId,
-          escrito_vinculado: escritoId,
-          titulo: `Providencia sobre: ${writing.titulo} - ${fechaHora}`
-        }))
-        setFormMode('indexada')
-        setShowForm(true)
+      const fetchWriting = async () => {
+        const writings = await getPendingWritings()
+        const writing = writings.find(w => w.id === escritoId)
+
+        if (writing) {
+          setSelectedWriting(writing)
+
+          // Generar título con fecha y hora actual
+          const now = new Date()
+          const fechaHora = now.toLocaleString('es-EC', {
+            year: 'numeric',
+            month: '2-digit',
+            day: '2-digit',
+            hour: '2-digit',
+            minute: '2-digit',
+            second: '2-digit'
+          })
+
+          setFormData(prev => ({
+            ...prev,
+            proceso_id: procesoId,
+            expediente_id: expedienteId,
+            escrito_vinculado: escritoId,
+            titulo: `Providencia sobre: ${writing.titulo} - ${fechaHora}`
+          }))
+          setFormMode('indexada')
+          setShowForm(true)
+        }
       }
+      fetchWriting()
     }
   }, [searchParams])
 
@@ -189,7 +204,7 @@ export default function ProvidenciasPage() {
         e.target.value = ''
         return
       }
-      
+
       // Validar tamaño (máximo 10MB)
       const maxSize = 10 * 1024 * 1024 // 10MB
       if (file.size > maxSize) {
@@ -197,14 +212,14 @@ export default function ProvidenciasPage() {
         e.target.value = ''
         return
       }
-      
+
       setFormData(prev => ({ ...prev, archivo: file }))
     }
   }
 
   const handleWritingSelect = (writing: any) => {
     setSelectedWriting(writing)
-    
+
     // Generar título con fecha y hora actual
     const now = new Date()
     const fechaHora = now.toLocaleString('es-EC', {
@@ -215,7 +230,7 @@ export default function ProvidenciasPage() {
       minute: '2-digit',
       second: '2-digit'
     })
-    
+
     setFormData(prev => ({
       ...prev,
       proceso_id: writing.proceso.id,
@@ -233,7 +248,7 @@ export default function ProvidenciasPage() {
     setProcessSearchResults([]) // Close dropdown
     setSelectedExpedienteForAutonomous(null) // Reset expediente when process changes
     setSelectedInstance('') // Reset instance selection
-    
+
     // Generar título con fecha y hora actual
     const now = new Date()
     const fechaHora = now.toLocaleString('es-EC', {
@@ -244,7 +259,7 @@ export default function ProvidenciasPage() {
       minute: '2-digit',
       second: '2-digit'
     })
-    
+
     // Actualizar formData con el proceso seleccionado
     setFormData(prev => ({
       ...prev,
@@ -269,16 +284,16 @@ export default function ProvidenciasPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    
+
     // Confirmación de seguridad
-    const confirmMessage = formData.solicitar_secretaria 
+    const confirmMessage = formData.solicitar_secretaria
       ? `¿Está seguro de que desea crear esta providencia?\n\nTipo: ${formData.tipo_providencia}\nTítulo: ${formData.titulo}\n\nSe solicitará actividad a secretaría: ${formData.solicitud_secretaria}\n\nEsta acción no se puede deshacer.`
       : `¿Está seguro de que desea crear esta providencia?\n\nTipo: ${formData.tipo_providencia}\nTítulo: ${formData.titulo}\n\nEsta acción no se puede deshacer.`
-    
+
     if (!confirm(confirmMessage)) {
       return
     }
-    
+
     setIsSubmitting(true)
 
     try {
@@ -310,7 +325,7 @@ export default function ProvidenciasPage() {
         titulo: formData.titulo,
         contenido: formData.contenido,
         archivo_url: archivoBase64 || undefined,
-        creado_por: user?.name || 'Usuario',
+        creado_por: user?.id || '',
         fecha_creacion: new Date().toISOString(),
         metadata: {
           tipo_providencia: formData.tipo_providencia,
@@ -335,9 +350,22 @@ export default function ProvidenciasPage() {
         }
       }
 
-      // Crear la actividad
-      const newActivity = createActivity(actividadData)
-      
+      // Crear la actividad usando API Route para evitar problemas de RLS
+      const response = await fetch('/api/activities/create', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(actividadData),
+      })
+
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw new Error(errorData.error || 'Error al crear actividad')
+      }
+
+      const newActivity = await response.json()
+
       // Si se solicita actividad a secretaría, crear la solicitud
       if (formData.solicitar_secretaria && formData.solicitud_secretaria) {
         const solicitudSecretaria = {
@@ -359,23 +387,23 @@ export default function ProvidenciasPage() {
         existingSolicitudes.push(solicitudSecretaria)
         localStorage.setItem('satje_solicitudes_secretaria', JSON.stringify(existingSolicitudes))
       }
-      
+
       // Si es providencia indexada, marcar el escrito como despachado
       if (formMode === 'indexada' && formData.escrito_vinculado) {
-        const success = markWritingAsDispatched(formData.escrito_vinculado, user?.name || 'Usuario')
+        const success = await markWritingAsDispatched(formData.escrito_vinculado, user?.name || 'Usuario')
         if (success) {
           console.log('Escrito marcado como despachado automáticamente')
         }
       }
 
       console.log('Providencia creada:', newActivity)
-      
-      const successMessage = formData.solicitar_secretaria 
+
+      const successMessage = formData.solicitar_secretaria
         ? 'Providencia creada exitosamente. Se ha enviado solicitud a secretaría para completar la actividad solicitada.'
         : 'Providencia creada exitosamente'
-      
+
       alert(successMessage)
-      
+
       setIsSubmitting(false)
       setShowForm(false)
       setFormData({
@@ -390,7 +418,7 @@ export default function ProvidenciasPage() {
         solicitud_secretaria: ''
       })
       setSelectedWriting(null)
-      
+
     } catch (error) {
       console.error('Error al crear providencia:', error)
       alert('Error al crear la providencia')
@@ -402,13 +430,13 @@ export default function ProvidenciasPage() {
     <div className="min-h-screen bg-judicial-50">
       {/* Mobile Header */}
       <MobileHeader onMenuClick={() => setIsSidebarOpen(true)} />
-      
+
       <div className="flex">
-        <Sidebar 
-          isOpen={isSidebarOpen} 
-          onClose={() => setIsSidebarOpen(false)} 
+        <Sidebar
+          isOpen={isSidebarOpen}
+          onClose={() => setIsSidebarOpen(false)}
         />
-        
+
         <div className="flex-1 lg:ml-64">
           <div className="p-8">
             {/* Header */}
@@ -429,11 +457,10 @@ export default function ProvidenciasPage() {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <button
                   onClick={() => handleModeChange('indexada')}
-                  className={`p-4 rounded-lg border-2 transition-colors ${
-                    formMode === 'indexada'
-                      ? 'border-primary-500 bg-primary-50 text-primary-900'
-                      : 'border-judicial-200 hover:border-judicial-300'
-                  }`}
+                  className={`p-4 rounded-lg border-2 transition-colors ${formMode === 'indexada'
+                    ? 'border-primary-500 bg-primary-50 text-primary-900'
+                    : 'border-judicial-200 hover:border-judicial-300'
+                    }`}
                 >
                   <div className="flex items-center gap-3 mb-2">
                     <FileText className="h-5 w-5" />
@@ -446,11 +473,10 @@ export default function ProvidenciasPage() {
 
                 <button
                   onClick={() => handleModeChange('autonoma')}
-                  className={`p-4 rounded-lg border-2 transition-colors ${
-                    formMode === 'autonoma'
-                      ? 'border-primary-500 bg-primary-50 text-primary-900'
-                      : 'border-judicial-200 hover:border-judicial-300'
-                  }`}
+                  className={`p-4 rounded-lg border-2 transition-colors ${formMode === 'autonoma'
+                    ? 'border-primary-500 bg-primary-50 text-primary-900'
+                    : 'border-judicial-200 hover:border-judicial-300'
+                    }`}
                 >
                   <div className="flex items-center gap-3 mb-2">
                     <Scale className="h-5 w-5" />
@@ -478,7 +504,7 @@ export default function ProvidenciasPage() {
                     onChange={(e) => setSearchTerm(e.target.value)}
                     className="input-field pl-10 w-full"
                   />
-                  
+
                   {searchResults.length > 0 && (
                     <div className="absolute z-10 w-full mt-1 bg-white border border-judicial-200 rounded-lg shadow-lg max-h-60 overflow-y-auto">
                       {searchResults.map((writing) => (
@@ -570,7 +596,7 @@ export default function ProvidenciasPage() {
                     </div>
                   )}
                 </div>
-                
+
                 {selectedProcessForAutonomous && (
                   <div className="mt-4 p-3 bg-green-50 border border-green-200 rounded-lg">
                     <h4 className="font-medium text-green-900 mb-2">Proceso Seleccionado</h4>
@@ -635,7 +661,7 @@ export default function ProvidenciasPage() {
                       </label>
                       <select
                         value={formData.tipo_providencia}
-                        onChange={(e) => setFormData({...formData, tipo_providencia: e.target.value})}
+                        onChange={(e) => setFormData({ ...formData, tipo_providencia: e.target.value })}
                         className="input-field"
                         required
                       >
@@ -653,7 +679,7 @@ export default function ProvidenciasPage() {
                       <input
                         type="text"
                         value={formData.titulo}
-                        onChange={(e) => setFormData({...formData, titulo: e.target.value})}
+                        onChange={(e) => setFormData({ ...formData, titulo: e.target.value })}
                         placeholder="Ej: Auto de admisión de demanda"
                         className="input-field"
                         required
@@ -667,7 +693,7 @@ export default function ProvidenciasPage() {
                     </label>
                     <textarea
                       value={formData.contenido}
-                      onChange={(e) => setFormData({...formData, contenido: e.target.value})}
+                      onChange={(e) => setFormData({ ...formData, contenido: e.target.value })}
                       placeholder="Escriba aquí el contenido de la providencia..."
                       className="input-field h-40 resize-none"
                       required
@@ -684,14 +710,14 @@ export default function ProvidenciasPage() {
                         type="checkbox"
                         id="solicitar_secretaria"
                         checked={formData.solicitar_secretaria}
-                        onChange={(e) => setFormData({...formData, solicitar_secretaria: e.target.checked})}
+                        onChange={(e) => setFormData({ ...formData, solicitar_secretaria: e.target.checked })}
                         className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
                       />
                       <label htmlFor="solicitar_secretaria" className="text-sm font-medium text-blue-900">
                         Solicitar actividad a Secretaría
                       </label>
                     </div>
-                    
+
                     {formData.solicitar_secretaria && (
                       <div>
                         <label className="block text-sm font-medium text-blue-900 mb-1">
@@ -699,7 +725,7 @@ export default function ProvidenciasPage() {
                         </label>
                         <textarea
                           value={formData.solicitud_secretaria}
-                          onChange={(e) => setFormData({...formData, solicitud_secretaria: e.target.value})}
+                          onChange={(e) => setFormData({ ...formData, solicitud_secretaria: e.target.value })}
                           placeholder="Especifique qué actividad debe realizar la secretaría..."
                           className="input-field h-24 resize-none"
                           required={formData.solicitar_secretaria}
@@ -766,7 +792,7 @@ export default function ProvidenciasPage() {
                           <p className="text-judicial-700">{selectedProcessForAutonomous.asunto}</p>
                         </div>
                       </div>
-                      
+
                       {/* Selección de Instancia */}
                       <div>
                         <label className="block text-sm font-medium text-judicial-700 mb-2">
@@ -781,10 +807,10 @@ export default function ProvidenciasPage() {
                           <option value="">Seleccionar instancia</option>
                           {selectedProcessForAutonomous.expedientes?.map((expediente: any) => (
                             <option key={expediente.id} value={expediente.id}>
-                              {expediente.instancia === 'primera' ? 'PRIMER NIVEL' : 
-                               expediente.instancia === 'segunda' ? 'SEGUNDO NIVEL' : 
-                               expediente.instancia === 'tercera' ? 'TERCER NIVEL' : 
-                               expediente.instancia}
+                              {expediente.instancia === 'primera' ? 'PRIMER NIVEL' :
+                                expediente.instancia === 'segunda' ? 'SEGUNDO NIVEL' :
+                                  expediente.instancia === 'tercera' ? 'TERCER NIVEL' :
+                                    expediente.instancia}
                             </option>
                           ))}
                         </select>

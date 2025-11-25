@@ -35,10 +35,18 @@ export default function EditarProcesoPage() {
   })
 
   // Obtener lista de jueces
-  const jueces = getUsers().filter(u => u.role === 'juez').map(juez => ({
-    id: juez.id,
-    name: juez.name,
-  }))
+  const [jueces, setJueces] = useState<any[]>([])
+
+  useEffect(() => {
+    const loadJueces = async () => {
+      const users = await getUsers()
+      setJueces(users.filter(u => u.role === 'juez').map(juez => ({
+        id: juez.id,
+        name: juez.name,
+      })))
+    }
+    loadJueces()
+  }, [])
 
   const materias = [
     'Civil',
@@ -62,11 +70,13 @@ export default function EditarProcesoPage() {
     loadProcess()
   }, [processId])
 
-  const loadProcess = () => {
+  const loadProcess = async () => {
     try {
-      const processes = getProcesses()
-      const foundProcess = processes.find(p => p.id === processId)
-      
+      const response = await fetch('/api/processes/search')
+      if (!response.ok) throw new Error('Error fetching processes')
+      const processes = await response.json()
+      const foundProcess = processes.find((p: any) => p.id === processId)
+
       if (!foundProcess) {
         alert('Proceso no encontrado')
         router.push('/admin/procesos')
@@ -123,11 +133,11 @@ export default function EditarProcesoPage() {
       }
 
       // Actualizar el proceso
-      const updatedProcess = updateProcess(processId, formData)
+      const updatedProcess = await updateProcess(processId, formData)
 
       console.log('Proceso actualizado:', updatedProcess)
       alert('Proceso actualizado exitosamente')
-      
+
       // Redirigir a la lista de procesos
       router.push('/admin/procesos')
     } catch (error) {

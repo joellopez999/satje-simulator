@@ -5,7 +5,7 @@ import { FileText, Users, Scale, Shield, Briefcase, Settings, TrendingUp, Clock,
 import Sidebar from '@/components/Sidebar'
 import MobileHeader from '@/components/MobileHeader'
 import { useUser } from '@/app/providers'
-import { getProcesses } from '@/lib/simple-storage'
+
 
 export default function DashboardPage() {
   const [isLoading, setIsLoading] = useState(true)
@@ -21,29 +21,31 @@ export default function DashboardPage() {
   const { user } = useUser()
 
   useEffect(() => {
-    const loadDashboardData = () => {
+    const loadDashboardData = async () => {
       try {
-        const procesos = getProcesses()
-        
+        const response = await fetch('/api/processes/search')
+        if (!response.ok) throw new Error('Error fetching processes')
+        const procesos = await response.json()
+
         // Calcular estadísticas
         const totalProcesos = procesos.length
-        const procesosActivos = procesos.filter(p => p.estado === 'activo').length
-        const procesosAcumulados = procesos.filter(p => p.estado === 'acumulado').length
-        const procesosArchivados = procesos.filter(p => p.estado === 'archivado').length
-        
+        const procesosActivos = procesos.filter((p: any) => p.estado === 'activo').length
+        const procesosAcumulados = procesos.filter((p: any) => p.estado === 'acumulado').length
+        const procesosArchivados = procesos.filter((p: any) => p.estado === 'archivado').length
+
         // Contar escritos pendientes (actividades no despachadas)
         let escritosPendientes = 0
         const actividadesRecientes: any[] = []
-        
-        procesos.forEach(proceso => {
+
+        procesos.forEach((proceso: any) => {
           if (proceso.expedientes) {
-            proceso.expedientes.forEach(expediente => {
+            proceso.expedientes.forEach((expediente: any) => {
               if (expediente.actividades) {
-                expediente.actividades.forEach(actividad => {
+                expediente.actividades.forEach((actividad: any) => {
                   if (actividad.tipo === 'escrito' && !actividad.despachado) {
                     escritosPendientes++
                   }
-                  
+
                   // Agregar a actividades recientes (últimas 5)
                   if (actividadesRecientes.length < 5) {
                     actividadesRecientes.push({
@@ -60,10 +62,10 @@ export default function DashboardPage() {
             })
           }
         })
-        
+
         // Ordenar actividades por fecha (más recientes primero)
         actividadesRecientes.sort((a, b) => new Date(b.fecha).getTime() - new Date(a.fecha).getTime())
-        
+
         setStats({
           totalProcesos,
           procesosActivos,
@@ -72,7 +74,7 @@ export default function DashboardPage() {
           escritosPendientes,
           actividadesRecientes
         })
-        
+
       } catch (error) {
         console.error('Error loading dashboard data:', error)
       } finally {
@@ -104,12 +106,12 @@ export default function DashboardPage() {
     <div className="min-h-screen bg-gray-50">
       {/* Mobile Header */}
       <MobileHeader onMenuClick={() => setIsSidebarOpen(true)} />
-      
+
       <div className="flex">
         {/* Sidebar */}
-        <Sidebar 
-          isOpen={isSidebarOpen} 
-          onClose={() => setIsSidebarOpen(false)} 
+        <Sidebar
+          isOpen={isSidebarOpen}
+          onClose={() => setIsSidebarOpen(false)}
         />
 
         {/* Main Content */}
@@ -240,7 +242,7 @@ export default function DashboardPage() {
                     </a>
                   </>
                 )}
-                
+
                 {user?.role === 'secretario' && (
                   <a href="/operadores/secretaria" className="p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors text-left">
                     <Shield className="h-6 w-6 text-green-600 mb-2" />
@@ -248,7 +250,7 @@ export default function DashboardPage() {
                     <p className="text-sm text-gray-600">Registrar actuación</p>
                   </a>
                 )}
-                
+
                 {user?.role === 'admin' && (
                   <>
                     <a href="/admin/procesos" className="p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors text-left">
@@ -263,7 +265,7 @@ export default function DashboardPage() {
                     </a>
                   </>
                 )}
-                
+
                 <a href="/operadores" className="p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors text-left">
                   <Eye className="h-6 w-6 text-purple-600 mb-2" />
                   <h4 className="font-medium text-gray-900">Buzón de Despacho</h4>

@@ -5,13 +5,13 @@ import { Plus, Edit, Trash2, User, Mail, Shield, CheckCircle, XCircle, Eye, EyeO
 import Sidebar from '@/components/Sidebar'
 import MobileHeader from '@/components/MobileHeader'
 import { useUser } from '@/app/providers'
-import { 
-  generateTemporaryPassword, 
-  generateCustomPassword, 
-  getUserPassword, 
-  createUserPassword, 
+import {
+  generateTemporaryPassword,
+  generateCustomPassword,
+  getUserPassword,
+  createUserPassword,
   updateUserPassword,
-  getUserPasswords 
+  getUserPasswords
 } from '@/lib/password-utils'
 
 interface User {
@@ -32,7 +32,7 @@ export default function UsuariosPage() {
   const [showPasswordModal, setShowPasswordModal] = useState(false)
   const [editingUser, setEditingUser] = useState<User | null>(null)
   const [selectedUser, setSelectedUser] = useState<User | null>(null)
-  const [showPasswords, setShowPasswords] = useState<{[key: string]: boolean}>({})
+  const [showPasswords, setShowPasswords] = useState<{ [key: string]: boolean }>({})
   const [isSidebarOpen, setIsSidebarOpen] = useState(false)
   const [formData, setFormData] = useState({
     name: '',
@@ -52,58 +52,26 @@ export default function UsuariosPage() {
     loadUsers()
   }, [])
 
-  const loadUsers = () => {
+  const loadUsers = async () => {
     try {
-      const storedUsers = localStorage.getItem('satje_users')
-      if (storedUsers) {
-        setUsers(JSON.parse(storedUsers))
+      const response = await fetch('/api/users')
+      const data = await response.json()
+
+      if (response.ok) {
+        setUsers(data.users || [])
       } else {
-        // Usuarios por defecto
-        const defaultUsers: User[] = [
-          {
-            id: '1',
-            name: 'Administrador del Sistema',
-            email: 'admin@satje.ec',
-            role: 'admin',
-            is_active: true,
-            created_at: new Date().toISOString()
-          },
-          {
-            id: '2',
-            name: 'Dr. Juan Pérez',
-            email: 'juez@satje.ec',
-            role: 'juez',
-            is_active: true,
-            created_at: new Date().toISOString()
-          },
-          {
-            id: '3',
-            name: 'Lic. María González',
-            email: 'secretario@satje.ec',
-            role: 'secretario',
-            is_active: true,
-            created_at: new Date().toISOString()
-          },
-          {
-            id: '4',
-            name: 'Abg. Carlos López',
-            email: 'abogado@satje.ec',
-            role: 'abogado',
-            is_active: true,
-            created_at: new Date().toISOString()
-          }
-        ]
-        setUsers(defaultUsers)
-        localStorage.setItem('satje_users', JSON.stringify(defaultUsers))
+        console.error('Error loading users:', data.error)
+        alert('Error al cargar usuarios: ' + data.error)
       }
     } catch (error) {
       console.error('Error loading users:', error)
+      alert('Error al cargar usuarios')
     } finally {
       setIsLoading(false)
     }
   }
 
-  const handleCreateUser = () => {
+  const handleCreateUser = async () => {
     if (!formData.name || !formData.email || !formData.role) {
       alert('Por favor complete todos los campos obligatorios')
       return
@@ -115,29 +83,42 @@ export default function UsuariosPage() {
       return
     }
 
-    const newUser: User = {
-      id: Date.now().toString(),
-      name: formData.name,
-      email: formData.email,
-      role: formData.role,
-      is_active: true,
-      created_at: new Date().toISOString()
-    }
-
     // Generar contraseña temporal
     const tempPassword = generateTemporaryPassword()
-    createUserPassword(newUser.id, tempPassword, true)
 
-    const updatedUsers = [...users, newUser]
-    setUsers(updatedUsers)
-    localStorage.setItem('satje_users', JSON.stringify(updatedUsers))
-    
-    // Limpiar formulario
-    setFormData({ name: '', email: '', role: 'abogado', password: '' })
-    setShowCreateModal(false)
-    
-    // Mostrar contraseña generada
-    alert(`Usuario creado exitosamente!\n\nContraseña temporal: ${tempPassword}\n\nEsta contraseña expira en 30 días.`)
+    try {
+      const response = await fetch('/api/users', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: formData.name,
+          email: formData.email,
+          role: formData.role,
+          password: tempPassword,
+          is_temporary: true
+        })
+      })
+
+      const data = await response.json()
+
+      if (!response.ok) {
+        alert('Error al crear usuario: ' + data.error)
+        return
+      }
+
+      // Reload users
+      await loadUsers()
+
+      // Limpiar formulario
+      setFormData({ name: '', email: '', role: 'abogado', password: '' })
+      setShowCreateModal(false)
+
+      // Mostrar contraseña generada
+      alert(`Usuario creado exitosamente!\n\nContraseña temporal: ${tempPassword}\n\nEsta contraseña expira en 30 días.`)
+    } catch (error) {
+      console.error('Error creating user:', error)
+      alert('Error al crear usuario')
+    }
   }
 
   const handleEditUser = (userToEdit: User) => {
@@ -151,7 +132,7 @@ export default function UsuariosPage() {
     setShowEditModal(true)
   }
 
-  const handleUpdateUser = () => {
+  const handleUpdateUser = async () => {
     if (!editingUser || !formData.name || !formData.email || !formData.role) {
       alert('Por favor complete todos los campos obligatorios')
       return
@@ -163,23 +144,39 @@ export default function UsuariosPage() {
       return
     }
 
-    const updatedUsers = users.map(u => 
-      u.id === editingUser.id 
-        ? { ...u, name: formData.name, email: formData.email, role: formData.role }
-        : u
-    )
-    
-    setUsers(updatedUsers)
-    localStorage.setItem('satje_users', JSON.stringify(updatedUsers))
-    
-    setShowEditModal(false)
-    setEditingUser(null)
-    setFormData({ name: '', email: '', role: 'abogado', password: '' })
-    
-    alert('Usuario actualizado exitosamente')
+    try {
+      const response = await fetch(`/api/users/${editingUser.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: formData.name,
+          email: formData.email,
+          role: formData.role
+        })
+      })
+
+      const data = await response.json()
+
+      if (!response.ok) {
+        alert('Error al actualizar usuario: ' + data.error)
+        return
+      }
+
+      // Reload users
+      await loadUsers()
+
+      setShowEditModal(false)
+      setEditingUser(null)
+      setFormData({ name: '', email: '', role: 'abogado', password: '' })
+
+      alert('Usuario actualizado exitosamente')
+    } catch (error) {
+      console.error('Error updating user:', error)
+      alert('Error al actualizar usuario')
+    }
   }
 
-  const handleDeleteUser = (userId: string) => {
+  const handleDeleteUser = async (userId: string) => {
     if (userId === user?.id) {
       alert('No puedes eliminar tu propio usuario')
       return
@@ -202,14 +199,29 @@ export default function UsuariosPage() {
     }
 
     if (confirm(`¿Está seguro de que desea eliminar al usuario "${userToDelete.name}"?\n\nEsta acción no se puede deshacer.`)) {
-      const updatedUsers = users.filter(u => u.id !== userId)
-      setUsers(updatedUsers)
-      localStorage.setItem('satje_users', JSON.stringify(updatedUsers))
-      alert('Usuario eliminado exitosamente')
+      try {
+        const response = await fetch(`/api/users/${userId}`, {
+          method: 'DELETE'
+        })
+
+        const data = await response.json()
+
+        if (!response.ok) {
+          alert('Error al eliminar usuario: ' + data.error)
+          return
+        }
+
+        // Reload users
+        await loadUsers()
+        alert('Usuario eliminado exitosamente')
+      } catch (error) {
+        console.error('Error deleting user:', error)
+        alert('Error al eliminar usuario')
+      }
     }
   }
 
-  const handleToggleStatus = (userId: string) => {
+  const handleToggleStatus = async (userId: string) => {
     const userToToggle = users.find(u => u.id === userId)
     if (!userToToggle) {
       alert('Usuario no encontrado')
@@ -225,14 +237,31 @@ export default function UsuariosPage() {
       }
     }
 
-    const updatedUsers = users.map(u => 
-      u.id === userId ? { ...u, is_active: !u.is_active } : u
-    )
-    setUsers(updatedUsers)
-    localStorage.setItem('satje_users', JSON.stringify(updatedUsers))
-    
-    const action = userToToggle.is_active ? 'desactivado' : 'activado'
-    alert(`Usuario ${action} exitosamente`)
+    try {
+      const response = await fetch(`/api/users/${userId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          is_active: !userToToggle.is_active
+        })
+      })
+
+      const data = await response.json()
+
+      if (!response.ok) {
+        alert('Error al cambiar estado: ' + data.error)
+        return
+      }
+
+      // Reload users
+      await loadUsers()
+
+      const action = userToToggle.is_active ? 'desactivado' : 'activado'
+      alert(`Usuario ${action} exitosamente`)
+    } catch (error) {
+      console.error('Error toggling status:', error)
+      alert('Error al cambiar estado del usuario')
+    }
   }
 
   const handleShowPassword = (userId: string) => {
@@ -271,7 +300,7 @@ export default function UsuariosPage() {
     }))
   }
 
-  const handleUpdatePassword = () => {
+  const handleUpdatePassword = async () => {
     if (!selectedUser) return
 
     if (!passwordData.newPassword || !passwordData.confirmPassword) {
@@ -289,32 +318,76 @@ export default function UsuariosPage() {
       return
     }
 
-    updateUserPassword(selectedUser.id, passwordData.newPassword, passwordData.isTemporary)
-    
-    setShowPasswordModal(false)
-    setSelectedUser(null)
-    setPasswordData({
-      currentPassword: '',
-      newPassword: '',
-      confirmPassword: '',
-      isTemporary: true
-    })
-    
-    alert('Contraseña actualizada exitosamente')
+    try {
+      const response = await fetch(`/api/users/${selectedUser.id}/password`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          password: passwordData.newPassword,
+          is_temporary: passwordData.isTemporary
+        })
+      })
+
+      const data = await response.json()
+
+      if (!response.ok) {
+        alert('Error al actualizar contraseña: ' + data.error)
+        return
+      }
+
+      setShowPasswordModal(false)
+      setSelectedUser(null)
+      setPasswordData({
+        currentPassword: '',
+        newPassword: '',
+        confirmPassword: '',
+        isTemporary: true
+      })
+
+      alert('Contraseña actualizada exitosamente')
+    } catch (error) {
+      console.error('Error updating password:', error)
+      alert('Error al actualizar contraseña')
+    }
   }
 
+  const [userPasswords, setUserPasswords] = useState<{ [key: string]: string }>({})
+
+  // Load passwords for all users
+  useEffect(() => {
+    const loadPasswords = async () => {
+      const passwords: { [key: string]: string } = {}
+      for (const u of users) {
+        try {
+          const response = await fetch(`/api/users/${u.id}/password`)
+          const data = await response.json()
+          if (response.ok && data.password) {
+            passwords[u.id] = data.password.password
+          }
+        } catch (error) {
+          console.error(`Error loading password for user ${u.id}:`, error)
+        }
+      }
+      setUserPasswords(passwords)
+    }
+
+    if (users.length > 0) {
+      loadPasswords()
+    }
+  }, [users])
+
   const getUserPasswordDisplay = (userId: string) => {
-    const userPassword = getUserPassword(userId)
-    if (!userPassword) return 'Sin contraseña'
-    
+    const password = userPasswords[userId]
+    if (!password) return 'Sin contraseña'
+
     const isVisible = showPasswords[userId]
-    return isVisible ? userPassword.password : '••••••••'
+    return isVisible ? password : '••••••••'
   }
 
   const isLastAdmin = (userId: string) => {
     const user = users.find(u => u.id === userId)
     if (!user || user.role !== 'admin') return false
-    
+
     const adminCount = users.filter(u => u.role === 'admin').length
     return adminCount === 1
   }
@@ -322,7 +395,7 @@ export default function UsuariosPage() {
   const isLastActiveAdmin = (userId: string) => {
     const user = users.find(u => u.id === userId)
     if (!user || user.role !== 'admin' || !user.is_active) return false
-    
+
     const activeAdminCount = users.filter(u => u.role === 'admin' && u.is_active).length
     return activeAdminCount === 1
   }
@@ -361,12 +434,12 @@ export default function UsuariosPage() {
     <div className="min-h-screen bg-gray-50">
       {/* Mobile Header */}
       <MobileHeader onMenuClick={() => setIsSidebarOpen(true)} />
-      
+
       <div className="flex">
         {/* Sidebar */}
-        <Sidebar 
-          isOpen={isSidebarOpen} 
-          onClose={() => setIsSidebarOpen(false)} 
+        <Sidebar
+          isOpen={isSidebarOpen}
+          onClose={() => setIsSidebarOpen(false)}
         />
 
         {/* Main Content */}
@@ -501,16 +574,16 @@ export default function UsuariosPage() {
                             <button
                               onClick={() => handleToggleStatus(user.id)}
                               disabled={isLastActiveAdmin(user.id)}
-                              className={`p-1 ${isLastActiveAdmin(user.id) 
-                                ? 'text-gray-400 cursor-not-allowed' 
-                                : user.is_active 
-                                  ? 'text-red-600 hover:text-red-900' 
+                              className={`p-1 ${isLastActiveAdmin(user.id)
+                                ? 'text-gray-400 cursor-not-allowed'
+                                : user.is_active
+                                  ? 'text-red-600 hover:text-red-900'
                                   : 'text-green-600 hover:text-green-900'
-                              }`}
-                              title={isLastActiveAdmin(user.id) 
-                                ? 'No se puede desactivar el último administrador activo' 
-                                : user.is_active 
-                                  ? 'Desactivar usuario' 
+                                }`}
+                              title={isLastActiveAdmin(user.id)
+                                ? 'No se puede desactivar el último administrador activo'
+                                : user.is_active
+                                  ? 'Desactivar usuario'
                                   : 'Activar usuario'
                               }
                             >
@@ -520,12 +593,12 @@ export default function UsuariosPage() {
                               <button
                                 onClick={() => handleDeleteUser(user.id)}
                                 disabled={isLastAdmin(user.id)}
-                                className={`p-1 ${isLastAdmin(user.id) 
-                                  ? 'text-gray-400 cursor-not-allowed' 
+                                className={`p-1 ${isLastAdmin(user.id)
+                                  ? 'text-gray-400 cursor-not-allowed'
                                   : 'text-red-600 hover:text-red-900'
-                                }`}
-                                title={isLastAdmin(user.id) 
-                                  ? 'No se puede eliminar el último administrador' 
+                                  }`}
+                                title={isLastAdmin(user.id)
+                                  ? 'No se puede eliminar el último administrador'
                                   : 'Eliminar usuario'
                                 }
                               >
@@ -548,7 +621,7 @@ export default function UsuariosPage() {
                   <h3 className="text-lg font-semibold text-gray-900 mb-4">
                     Crear Nuevo Usuario
                   </h3>
-                  
+
                   <div className="space-y-4">
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -562,7 +635,7 @@ export default function UsuariosPage() {
                         placeholder="Ej: Dr. Juan Pérez"
                       />
                     </div>
-                    
+
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-1">
                         Email *
@@ -575,7 +648,7 @@ export default function UsuariosPage() {
                         placeholder="usuario@ejemplo.com"
                       />
                     </div>
-                    
+
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-1">
                         Rol *
@@ -593,7 +666,7 @@ export default function UsuariosPage() {
                       </select>
                     </div>
                   </div>
-                  
+
                   <div className="flex justify-end space-x-3 mt-6">
                     <button
                       onClick={() => setShowCreateModal(false)}
@@ -619,7 +692,7 @@ export default function UsuariosPage() {
                   <h3 className="text-lg font-semibold text-gray-900 mb-4">
                     Editar Usuario
                   </h3>
-                  
+
                   <div className="space-y-4">
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -632,7 +705,7 @@ export default function UsuariosPage() {
                         className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                       />
                     </div>
-                    
+
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-1">
                         Email *
@@ -644,7 +717,7 @@ export default function UsuariosPage() {
                         className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                       />
                     </div>
-                    
+
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-1">
                         Rol *
@@ -662,7 +735,7 @@ export default function UsuariosPage() {
                       </select>
                     </div>
                   </div>
-                  
+
                   <div className="flex justify-end space-x-3 mt-6">
                     <button
                       onClick={() => {
@@ -692,7 +765,7 @@ export default function UsuariosPage() {
                   <h3 className="text-lg font-semibold text-gray-900 mb-4">
                     Cambiar Contraseña - {selectedUser.name}
                   </h3>
-                  
+
                   <div className="space-y-4">
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -722,7 +795,7 @@ export default function UsuariosPage() {
                         </button>
                       </div>
                     </div>
-                    
+
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-1">
                         Confirmar Contraseña *
@@ -735,7 +808,7 @@ export default function UsuariosPage() {
                         placeholder="Confirme la contraseña"
                       />
                     </div>
-                    
+
                     <div className="flex items-center">
                       <input
                         type="checkbox"
@@ -749,7 +822,7 @@ export default function UsuariosPage() {
                       </label>
                     </div>
                   </div>
-                  
+
                   <div className="flex justify-end space-x-3 mt-6">
                     <button
                       onClick={() => {

@@ -1,12 +1,14 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import { useRouter } from 'next/navigation'
 import { FileText, Search, Plus, Edit, Trash2 } from 'lucide-react'
 import Sidebar from '@/components/Sidebar'
 import MobileHeader from '@/components/MobileHeader'
-import { getProcesses } from '@/lib/simple-storage'
+import { getProcesses, updateProcess, deleteProcess } from '@/lib/storage'
 
 export default function AdminProcesosPage() {
+  const router = useRouter()
   const [processes, setProcesses] = useState<any[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [searchTerm, setSearchTerm] = useState('')
@@ -23,9 +25,11 @@ export default function AdminProcesosPage() {
   })
 
   useEffect(() => {
-    const loadProcesses = () => {
+    const loadProcesses = async () => {
       try {
-        const allProcesses = getProcesses()
+        const response = await fetch('/api/processes/search')
+        if (!response.ok) throw new Error('Error fetching processes')
+        const allProcesses = await response.json()
         setProcesses(allProcesses)
       } catch (error) {
         console.error('Error loading processes:', error)
@@ -58,33 +62,38 @@ export default function AdminProcesosPage() {
     setShowEditModal(true)
   }
 
-  const handleSaveEdit = () => {
+  const handleSaveEdit = async () => {
     if (!editingProcess) return
 
-    const updatedProcesses = processes.map(process => {
-      if (process.id === editingProcess.id) {
-        return {
-          ...process,
-          ...editForm,
-          fecha_actualizacion: new Date().toISOString()
-        }
-      }
-      return process
-    })
+    try {
+      const updatedProcess = await updateProcess(editingProcess.id, {
+        ...editForm,
+        estado: editForm.estado as 'activo' | 'acumulado' | 'archivado' | 'concluido',
+        fecha_actualizacion: new Date().toISOString()
+      })
 
-    setProcesses(updatedProcesses)
-    localStorage.setItem('satje_processes', JSON.stringify(updatedProcesses))
-    setShowEditModal(false)
-    setEditingProcess(null)
-    alert('Proceso actualizado exitosamente')
+      if (updatedProcess) {
+        setProcesses(processes.map(p => p.id === updatedProcess.id ? updatedProcess : p))
+        setShowEditModal(false)
+        setEditingProcess(null)
+        alert('Proceso actualizado exitosamente')
+      }
+    } catch (error) {
+      console.error('Error updating process:', error)
+      alert('Error al actualizar el proceso')
+    }
   }
 
-  const handleDeleteProcess = (processId: string) => {
+  const handleDeleteProcess = async (processId: string) => {
     if (confirm('¿Está seguro de que desea eliminar este proceso? Esta acción no se puede deshacer.')) {
-      const updatedProcesses = processes.filter(process => process.id !== processId)
-      setProcesses(updatedProcesses)
-      localStorage.setItem('satje_processes', JSON.stringify(updatedProcesses))
-      alert('Proceso eliminado exitosamente')
+      try {
+        await deleteProcess(processId)
+        setProcesses(processes.filter(process => process.id !== processId))
+        alert('Proceso eliminado exitosamente')
+      } catch (error) {
+        console.error('Error deleting process:', error)
+        alert('Error al eliminar el proceso')
+      }
     }
   }
 
@@ -100,12 +109,12 @@ export default function AdminProcesosPage() {
     <div className="min-h-screen bg-gray-50">
       {/* Mobile Header */}
       <MobileHeader onMenuClick={() => setIsSidebarOpen(true)} />
-      
+
       <div className="flex">
         {/* Sidebar */}
-        <Sidebar 
-          isOpen={isSidebarOpen} 
-          onClose={() => setIsSidebarOpen(false)} 
+        <Sidebar
+          isOpen={isSidebarOpen}
+          onClose={() => setIsSidebarOpen(false)}
         />
 
         {/* Main Content */}
@@ -186,7 +195,10 @@ export default function AdminProcesosPage() {
                     className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                   />
                 </div>
-                <button className="bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-4 rounded-lg transition-colors duration-200 flex items-center gap-2">
+                <button
+                  onClick={() => router.push('/abogados/crear-causa')}
+                  className="bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-4 rounded-lg transition-colors duration-200 flex items-center gap-2"
+                >
                   <Plus className="h-4 w-4" />
                   Nuevo Proceso
                 </button>
@@ -235,26 +247,25 @@ export default function AdminProcesosPage() {
                           {process.materia}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
-                          <span className={`px-2 py-1 text-xs font-medium rounded-full ${
-                            process.estado === 'activo'
-                              ? 'bg-green-100 text-green-800'
-                              : process.estado === 'acumulado'
+                          <span className={`px-2 py-1 text-xs font-medium rounded-full ${process.estado === 'activo'
+                            ? 'bg-green-100 text-green-800'
+                            : process.estado === 'acumulado'
                               ? 'bg-yellow-100 text-yellow-800'
                               : 'bg-gray-100 text-gray-800'
-                          }`}>
+                            }`}>
                             {process.estado}
                           </span>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                           <div className="flex gap-2">
-                            <button 
+                            <button
                               onClick={() => handleEditProcess(process)}
                               className="text-blue-600 hover:text-blue-900 p-1 rounded hover:bg-blue-50"
                               title="Editar proceso"
                             >
                               <Edit className="h-4 w-4" />
                             </button>
-                            <button 
+                            <button
                               onClick={() => handleDeleteProcess(process.id)}
                               className="text-red-600 hover:text-red-900 p-1 rounded hover:bg-red-50"
                               title="Eliminar proceso"
@@ -281,7 +292,7 @@ export default function AdminProcesosPage() {
               <h3 className="text-lg font-semibold text-gray-900 mb-4">
                 Editar Proceso: {editingProcess?.numero_causa}
               </h3>
-              
+
               <form className="space-y-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -294,7 +305,7 @@ export default function AdminProcesosPage() {
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                   />
                 </div>
-                
+
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
                     Demandado
@@ -306,7 +317,7 @@ export default function AdminProcesosPage() {
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                   />
                 </div>
-                
+
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
                     Asunto
@@ -318,7 +329,7 @@ export default function AdminProcesosPage() {
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                   />
                 </div>
-                
+
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
                     Materia
@@ -330,7 +341,7 @@ export default function AdminProcesosPage() {
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                   />
                 </div>
-                
+
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
                     Lugar
@@ -342,7 +353,7 @@ export default function AdminProcesosPage() {
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                   />
                 </div>
-                
+
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
                     Estado
@@ -358,7 +369,7 @@ export default function AdminProcesosPage() {
                   </select>
                 </div>
               </form>
-              
+
               <div className="flex gap-3 mt-6">
                 <button
                   onClick={handleSaveEdit}

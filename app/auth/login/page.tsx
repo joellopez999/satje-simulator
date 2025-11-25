@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import { Scale, Eye, EyeOff, LogIn, Settings, User, Briefcase } from 'lucide-react'
 import { useUser } from '@/app/providers'
 import { validatePassword, getUserPassword } from '@/lib/password-utils'
+import { supabase } from '@/lib/supabase'
 
 export default function LoginPage() {
   const router = useRouter()
@@ -18,7 +19,7 @@ export default function LoginPage() {
   const [autoFilled, setAutoFilled] = useState(false)
 
   // Usuarios de prueba para desarrollo
-  const testUsers = [
+  const testUsers: { email: string; password: string; name: string; role: string; id?: string }[] = [
     {
       email: 'admin@satje.com',
       password: 'admin123',
@@ -54,18 +55,18 @@ export default function LoginPage() {
     // Primero buscar en el sistema de gestión de usuarios
     const storedUsers = JSON.parse(localStorage.getItem('satje_users') || '[]')
     const storedUser = storedUsers.find((u: any) => u.role === role)
-    
+
     if (storedUser) {
       // Obtener la contraseña del sistema
       const userPassword = getUserPassword(storedUser.id)
       const password = userPassword ? userPassword.password : 'Sin contraseña'
-      
+
       setFormData({
         email: storedUser.email,
         password: password
       })
       setAutoFilled(true)
-      
+
       // Ocultar el indicador después de 3 segundos
       setTimeout(() => setAutoFilled(false), 3000)
       return
@@ -84,7 +85,7 @@ export default function LoginPage() {
       password: user.password
     })
     setAutoFilled(true)
-    
+
     // Ocultar el indicador después de 3 segundos
     setTimeout(() => setAutoFilled(false), 3000)
   }
@@ -94,106 +95,103 @@ export default function LoginPage() {
     setIsLoading(true)
 
     try {
-      // Primero intentar con el sistema de gestión de usuarios
-      const storedUsers = JSON.parse(localStorage.getItem('satje_users') || '[]')
-      const storedUser = storedUsers.find((u: any) => u.email === formData.email)
-      
-      if (storedUser) {
-        // Usar el sistema de contraseñas
-        const isValidPassword = validatePassword(storedUser.id, formData.password)
-        
-        if (!isValidPassword) {
-          alert('Contraseña incorrecta')
-          setIsLoading(false)
-          return
-        }
+      // 1. Intentar obtener el usuario desde Supabase
+      const { data: dbUser, error: dbError } = await supabase
+        .from('users')
+        .select('*')
+        .eq('email', formData.email)
+        .single()
 
-        // Guardar usuario en localStorage
+      if (dbUser) {
+        // Usuario existe en DB, usar sus datos
         const userSession = {
-          id: storedUser.id,
-          email: storedUser.email,
-          name: storedUser.name,
-          role: storedUser.role,
+          id: dbUser.id,
+          email: dbUser.email,
+          name: dbUser.name,
+          role: dbUser.role,
           loginTime: new Date().toISOString()
         }
 
         localStorage.setItem('satje_user_session', JSON.stringify(userSession))
-        
-        // Crear log de login
-        const loginLog = {
-          id: `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-          user_id: storedUser.id,
-          user_email: storedUser.email,
-          user_name: storedUser.name,
-          user_role: storedUser.role,
-          action: 'login',
-          description: 'Usuario inició sesión',
-          timestamp: new Date().toISOString(),
-          ip_address: 'localhost',
-          user_agent: navigator.userAgent
-        }
-
-        // Guardar log en localStorage
-        const existingLogs = JSON.parse(localStorage.getItem('satje_activity_logs') || '[]')
-        existingLogs.push(loginLog)
-        localStorage.setItem('satje_activity_logs', JSON.stringify(existingLogs))
-
-        // Actualizar el contexto de usuario
         login(userSession)
 
-        alert(`Bienvenido, ${storedUser.name}`)
+        alert(`Bienvenido de nuevo, ${dbUser.name}`)
         router.push('/')
         return
       }
 
-      // Fallback: Buscar usuario en la lista de prueba (para compatibilidad)
-      const user = testUsers.find(u => u.email === formData.email && u.password === formData.password)
-      
-      if (!user) {
+      // 2. Si no existe en DB, buscar en usuarios de prueba o legacy
+      let userToLogin = testUsers.find(u => u.email === formData.email && u.password === formData.password)
+      let isLegacy = false
+
+      if (!userToLogin) {
+        // Verificar si es un usuario guardado localmente (legacy)
+        const storedUsers = JSON.parse(localStorage.getItem('satje_users') || '[]')
+        const storedUser = storedUsers.find((u: any) => u.email === formData.email)
+
+        if (storedUser && validatePassword(storedUser.id, formData.password)) {
+          userToLogin = storedUser
+          isLegacy = true
+        }
+      }
+
+      if (!userToLogin) {
         alert('Credenciales incorrectas')
         setIsLoading(false)
         return
       }
 
-      // Guardar usuario en localStorage
+      // 3. Generar o validar ID
+      let validId = userToLogin.id
+      const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(validId || '')
+
+      if (!isUuid) {
+        validId = crypto.randomUUID()
+        // Si era legacy, actualizar el ID en localStorage para arreglarlo permanentemente
+        if (isLegacy) {
+          const storedUsers = JSON.parse(localStorage.getItem('satje_users') || '[]')
+          const updatedUsers = storedUsers.map((u: any) => u.email === userToLogin!.email ? { ...u, id: validId } : u)
+          localStorage.setItem('satje_users', JSON.stringify(updatedUsers))
+        }
+      }
+
+      // 4. Registrar/Actualizar usuario en Supabase para asegurar consistencia
+      try {
+        await fetch('/api/users/upsert', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            id: validId,
+            email: userToLogin.email,
+            name: userToLogin.name,
+            role: userToLogin.role,
+            is_active: true
+          })
+        })
+      } catch (err) {
+        console.error('Error syncing user to DB:', err)
+        // Continuar con el login aunque falle la sincronización (fallback local)
+      }
+
       const userSession = {
-        id: `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-        email: user.email,
-        name: user.name,
-        role: user.role,
+        id: validId!, // Assert validId is not null/undefined as it's set above
+        email: userToLogin.email,
+        name: userToLogin.name,
+        role: userToLogin.role,
         loginTime: new Date().toISOString()
       }
 
       localStorage.setItem('satje_user_session', JSON.stringify(userSession))
-      
-      // Crear log de login
-      const loginLog = {
-        id: `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-        user_id: userSession.id,
-        user_email: user.email,
-        user_name: user.name,
-        user_role: user.role,
-        action: 'login',
-        description: 'Usuario inició sesión',
-        timestamp: new Date().toISOString(),
-        ip_address: 'localhost',
-        user_agent: navigator.userAgent
-      }
-
-      // Guardar log en localStorage
-      const existingLogs = JSON.parse(localStorage.getItem('satje_activity_logs') || '[]')
-      existingLogs.push(loginLog)
-      localStorage.setItem('satje_activity_logs', JSON.stringify(existingLogs))
 
       // Actualizar el contexto de usuario
       login({
         ...userSession,
-        role: user.role as 'admin' | 'juez' | 'secretario' | 'abogado' | 'public'
+        role: userToLogin.role as 'admin' | 'juez' | 'secretario' | 'abogado' | 'public'
       })
 
-      alert(`Bienvenido, ${user.name}`)
+      alert(`Bienvenido, ${userToLogin.name}`)
       router.push('/')
-      
+
     } catch (error) {
       console.error('Error en login:', error)
       alert('Error al iniciar sesión')
@@ -340,7 +338,7 @@ export default function LoginPage() {
                 Abogado
               </button>
             </div>
-            
+
             <div className="mt-4 pt-4 border-t border-judicial-200">
               <h4 className="text-xs font-medium text-judicial-700 mb-2">Credenciales del Sistema:</h4>
               <div className="space-y-1 text-xs">
@@ -361,7 +359,7 @@ export default function LoginPage() {
                   <span className="font-mono text-judicial-800">abogado@satje.ec / [Ver en Gestión de Usuarios]</span>
                 </div>
                 <div className="mt-2 p-2 bg-blue-50 rounded text-xs text-blue-800">
-                  <strong>Nota:</strong> Las contraseñas se generan automáticamente al crear usuarios. 
+                  <strong>Nota:</strong> Las contraseñas se generan automáticamente al crear usuarios.
                   Ve a "Administración → Usuarios" para ver las contraseñas actuales.
                 </div>
               </div>

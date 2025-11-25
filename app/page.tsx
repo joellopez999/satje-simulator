@@ -5,14 +5,12 @@ import { useRouter } from 'next/navigation'
 import { Search, Scale, FileText } from 'lucide-react'
 import Sidebar from '@/components/Sidebar'
 import MobileHeader from '@/components/MobileHeader'
-import { getProcesses } from '@/lib/simple-storage'
+import { searchProcesses } from '@/lib/storage'
 import { useUser } from '@/app/providers'
 
 export default function HomePage() {
   const [searchResults, setSearchResults] = useState<any[]>([])
   const [isSearching, setIsSearching] = useState(false)
-  const [processes, setProcesses] = useState<any[]>([])
-  const [isLoadingProcesses, setIsLoadingProcesses] = useState(true)
   const [searchTerm, setSearchTerm] = useState('')
   const [showNoResultsMessage, setShowNoResultsMessage] = useState(false)
   const [isSidebarOpen, setIsSidebarOpen] = useState(false)
@@ -21,102 +19,67 @@ export default function HomePage() {
 
   // No redirigir automáticamente - permitir acceso sin autenticación
 
+  // Búsqueda en tiempo real usando searchProcesses
   useEffect(() => {
-    const loadProcesses = () => {
-      try {
-        const allProcesses = getProcesses()
-        setProcesses(allProcesses)
-      } catch (error) {
-        console.error('Error loading processes:', error)
-        setProcesses([])
-      } finally {
-        setIsLoadingProcesses(false)
+    const performSearch = async () => {
+      if (searchTerm.length >= 3) {
+        setIsSearching(true)
+        try {
+          const params = new URLSearchParams()
+          params.append('numero_causa', searchTerm)
+          const response = await fetch(`/api/processes/search?${params.toString()}`)
+          if (!response.ok) throw new Error('Error fetching processes')
+          const results = await response.json()
+          setSearchResults(results)
+        } catch (error) {
+          console.error('Error searching processes:', error)
+          setSearchResults([])
+        } finally {
+          setIsSearching(false)
+        }
+      } else {
+        setSearchResults([])
+        setIsSearching(false)
       }
     }
 
-    loadProcesses()
-  }, [])
+    performSearch()
+  }, [searchTerm])
 
-  // Búsqueda en tiempo real
-  useEffect(() => {
-    if (searchTerm.length >= 1 && processes.length > 0) {
-      setIsSearching(true)
-      
-      const filtered = processes.filter(process => {
-        if (!process) return false
-        
-        const searchLower = searchTerm.toLowerCase()
-        return (
-          (process.numero_causa && process.numero_causa.toLowerCase().includes(searchLower)) ||
-          (process.actor && process.actor.toLowerCase().includes(searchLower)) ||
-          (process.demandado && process.demandado.toLowerCase().includes(searchLower)) ||
-          (process.asunto && process.asunto.toLowerCase().includes(searchLower)) ||
-          (process.materia && process.materia.toLowerCase().includes(searchLower))
-        )
-      })
-      
-      setSearchResults(filtered)
-      setIsSearching(false)
-    } else if (searchTerm.length === 0) {
-      setSearchResults([])
-      setIsSearching(false)
-    }
-  }, [searchTerm, processes])
-
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    
-    if (searchTerm.length >= 1 && processes.length > 0) {
-      setIsSearching(true)
-      
-      const filtered = processes.filter(process => {
-        if (!process) return false
-        
-        const searchLower = searchTerm.toLowerCase()
-        return (
-          (process.numero_causa && process.numero_causa.toLowerCase().includes(searchLower)) ||
-          (process.actor && process.actor.toLowerCase().includes(searchLower)) ||
-          (process.demandado && process.demandado.toLowerCase().includes(searchLower)) ||
-          (process.asunto && process.asunto.toLowerCase().includes(searchLower)) ||
-          (process.materia && process.materia.toLowerCase().includes(searchLower))
-        )
-      })
-      
-      setSearchResults(filtered)
-      setIsSearching(false)
-      
-      // Mostrar mensaje si no hay resultados
-      if (filtered.length === 0) {
-        setShowNoResultsMessage(true)
-        setTimeout(() => {
-          setShowNoResultsMessage(false)
-        }, 3000) // Desaparece en 3 segundos
-      }
-    } else {
-      setSearchResults([])
-      setIsSearching(false)
-    }
-  }
 
-  if (isLoadingProcesses) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50">
-        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-blue-600"></div>
-      </div>
-    )
+    if (searchTerm.length >= 3) {
+      setIsSearching(true)
+      try {
+        const params = new URLSearchParams()
+        params.append('numero_causa', searchTerm)
+        const response = await fetch(`/api/processes/search?${params.toString()}`)
+        if (!response.ok) throw new Error('Error fetching processes')
+        const results = await response.json()
+        setSearchResults(results)
+        setShowNoResultsMessage(results.length === 0)
+      } catch (error) {
+        console.error('Error searching processes:', error)
+        setSearchResults([])
+        setShowNoResultsMessage(true)
+      } finally {
+        setIsSearching(false)
+      }
+    }
   }
 
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Mobile Header */}
       {user && <MobileHeader onMenuClick={() => setIsSidebarOpen(true)} />}
-      
+
       <div className="flex">
         {/* Sidebar - Solo mostrar si hay usuario autenticado */}
         {user && (
-          <Sidebar 
-            isOpen={isSidebarOpen} 
-            onClose={() => setIsSidebarOpen(false)} 
+          <Sidebar
+            isOpen={isSidebarOpen}
+            onClose={() => setIsSidebarOpen(false)}
           />
         )}
 
@@ -132,7 +95,7 @@ export default function HomePage() {
               <p className="text-gray-600 text-lg mb-4">
                 Sistema Automático de Trámite Judicial Ecuatoriano
               </p>
-              
+
               {/* Botón de Login - Solo mostrar si no hay usuario autenticado */}
               {!user && (
                 <div className="flex justify-center gap-4">
@@ -173,7 +136,7 @@ export default function HomePage() {
                       className="w-full px-3 py-2 pl-10 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                     />
                   </div>
-                  <button 
+                  <button
                     type="submit"
                     className="bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-4 rounded-lg transition-colors duration-200"
                   >
@@ -231,13 +194,12 @@ export default function HomePage() {
                             {process.materia}
                           </p>
                         </div>
-                        <span className={`px-3 py-1 rounded-full text-xs font-medium ${
-                          process.estado === 'activo'
-                            ? 'bg-green-100 text-green-800'
-                            : process.estado === 'acumulado'
+                        <span className={`px-3 py-1 rounded-full text-xs font-medium ${process.estado === 'activo'
+                          ? 'bg-green-100 text-green-800'
+                          : process.estado === 'acumulado'
                             ? 'bg-yellow-100 text-yellow-800'
                             : 'bg-gray-100 text-gray-800'
-                        }`}>
+                          }`}>
                           {process.estado}
                         </span>
                       </div>
@@ -262,14 +224,12 @@ export default function HomePage() {
                   ))}
                 </div>
               </div>
-            ) : (
-              !isLoadingProcesses && (
-                <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 text-center py-8">
-                  <FileText className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-                  <p className="text-gray-600">No se encontraron procesos con los criterios de búsqueda</p>
-                </div>
-              )
-            )}
+            ) : searchResults.length === 0 && searchTerm.length >= 3 ? (
+              <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 text-center py-8">
+                <FileText className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                <p className="text-gray-600">No se encontraron procesos con los criterios de búsqueda</p>
+              </div>
+            ) : null}
           </div>
         </div>
       </div>

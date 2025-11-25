@@ -9,14 +9,17 @@ export default function TestDropdownPage() {
 
   // Búsqueda en tiempo real
   useEffect(() => {
-    if (searchTerm.length >= 3) {
-      const results = searchProcesses({
-        numero_causa: searchTerm
-      })
-      setSearchResults(results)
-    } else {
-      setSearchResults([])
+    const performSearch = async () => {
+      if (searchTerm.length >= 3) {
+        const results = await searchProcesses({
+          numero_causa: searchTerm
+        })
+        setSearchResults(results)
+      } else {
+        setSearchResults([])
+      }
     }
+    performSearch()
   }, [searchTerm])
 
   // Cerrar dropdown al hacer clic fuera o presionar Escape
@@ -36,7 +39,7 @@ export default function TestDropdownPage() {
 
     document.addEventListener('mousedown', handleClickOutside)
     document.addEventListener('keydown', handleKeyDown)
-    
+
     return () => {
       document.removeEventListener('mousedown', handleClickOutside)
       document.removeEventListener('keydown', handleKeyDown)
@@ -52,7 +55,7 @@ export default function TestDropdownPage() {
   return (
     <div className="min-h-screen bg-judicial-50 p-8">
       <h1 className="text-2xl font-bold mb-6">Test Dropdown</h1>
-      
+
       <div className="max-w-md">
         <div className="relative search-dropdown">
           <input
@@ -62,7 +65,7 @@ export default function TestDropdownPage() {
             onChange={(e) => setSearchTerm(e.target.value)}
             className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
           />
-          
+
           {/* Resultados de búsqueda en tiempo real */}
           {searchResults.length > 0 && (
             <div className="absolute z-10 w-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg max-h-60 overflow-y-auto">
@@ -85,7 +88,7 @@ export default function TestDropdownPage() {
             </div>
           )}
         </div>
-        
+
         {searchTerm && (
           <div className="mt-4 p-4 bg-green-50 border border-green-200 rounded-lg">
             <p className="text-green-800">Búsqueda: {searchTerm}</p>
