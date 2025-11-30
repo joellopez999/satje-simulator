@@ -43,7 +43,40 @@ export function Providers({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     checkAuth()
+
+    // Check session timeout every minute
+    const interval = setInterval(() => {
+      checkSessionTimeout()
+    }, 60000)
+
+    return () => clearInterval(interval)
   }, [])
+
+  const checkSessionTimeout = () => {
+    try {
+      const userSession = localStorage.getItem('satje_user_session')
+      if (userSession) {
+        const userData = JSON.parse(userSession)
+
+        // Admin users never timeout
+        if (userData.role === 'admin') return
+
+        if (userData.loginTime) {
+          const loginTime = new Date(userData.loginTime).getTime()
+          const currentTime = new Date().getTime()
+          const thirtyMinutes = 30 * 60 * 1000 // 30 minutes in ms
+
+          if (currentTime - loginTime > thirtyMinutes) {
+            console.log('Session timed out')
+            logout()
+            alert('Su sesión ha expirado por inactividad (30 min). Por favor inicie sesión nuevamente.')
+          }
+        }
+      }
+    } catch (error) {
+      console.error('Error checking session timeout:', error)
+    }
+  }
 
   const login = (userData: User) => {
     setUser(userData)
@@ -77,7 +110,7 @@ export function Providers({ children }: { children: ReactNode }) {
 
     setUser(null)
     localStorage.removeItem('satje_user_session')
-    
+
     // Redirigir al login
     window.location.href = '/auth/login'
   }

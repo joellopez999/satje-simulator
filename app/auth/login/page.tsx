@@ -17,6 +17,19 @@ export default function LoginPage() {
     password: ''
   })
   const [autoFilled, setAutoFilled] = useState(false)
+  const [showQuickAccess, setShowQuickAccess] = useState(false)
+  const [showPinInput, setShowPinInput] = useState(false)
+  const [pin, setPin] = useState('')
+
+  const handlePinSubmit = () => {
+    if (pin === '291213') {
+      setShowQuickAccess(true)
+      setShowPinInput(false)
+    } else {
+      alert('PIN incorrecto')
+      setPin('')
+    }
+  }
 
   // Usuarios de prueba para desarrollo
   const testUsers: { email: string; password: string; name: string; role: string; id?: string }[] = [
@@ -304,66 +317,97 @@ export default function LoginPage() {
             </div>
           </div>
 
-          {/* Botones de roles de prueba */}
+          {/* Botones de roles de prueba (Protegidos) */}
           <div className="mt-8 p-4 bg-judicial-50 rounded-lg">
-            <h3 className="text-sm font-medium text-judicial-900 mb-2">Acceso Rápido por Rol:</h3>
-            <p className="text-xs text-judicial-600 mb-4">Haga clic en un botón para llenar automáticamente los campos</p>
-            <div className="grid grid-cols-2 gap-3">
-              <button
-                onClick={() => handleQuickLogin('admin')}
-                className="bg-red-600 hover:bg-red-700 text-white font-medium py-2 px-3 rounded-lg transition-colors duration-200 text-sm flex items-center justify-center gap-2"
-              >
-                <Settings className="h-4 w-4" />
-                Administrador
-              </button>
-              <button
-                onClick={() => handleQuickLogin('juez')}
-                className="bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-3 rounded-lg transition-colors duration-200 text-sm flex items-center justify-center gap-2"
-              >
-                <Scale className="h-4 w-4" />
-                Juez
-              </button>
-              <button
-                onClick={() => handleQuickLogin('secretario')}
-                className="bg-green-600 hover:bg-green-700 text-white font-medium py-2 px-3 rounded-lg transition-colors duration-200 text-sm flex items-center justify-center gap-2"
-              >
-                <User className="h-4 w-4" />
-                Secretario
-              </button>
-              <button
-                onClick={() => handleQuickLogin('abogado')}
-                className="bg-purple-600 hover:bg-purple-700 text-white font-medium py-2 px-3 rounded-lg transition-colors duration-200 text-sm flex items-center justify-center gap-2"
-              >
-                <Briefcase className="h-4 w-4" />
-                Abogado
-              </button>
-            </div>
+            {!showQuickAccess ? (
+              <div className="text-center">
+                <button
+                  onClick={() => setShowPinInput(true)}
+                  className="text-sm text-judicial-600 hover:text-judicial-800 underline"
+                >
+                  Mostrar Accesos de Prueba
+                </button>
 
-            <div className="mt-4 pt-4 border-t border-judicial-200">
-              <h4 className="text-xs font-medium text-judicial-700 mb-2">Credenciales del Sistema:</h4>
-              <div className="space-y-1 text-xs">
-                <div className="flex justify-between">
-                  <span className="text-judicial-600">Admin:</span>
-                  <span className="font-mono text-judicial-800">admin@satje.ec / [Ver en Gestión de Usuarios]</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-judicial-600">Juez:</span>
-                  <span className="font-mono text-judicial-800">juez@satje.ec / [Ver en Gestión de Usuarios]</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-judicial-600">Secretario:</span>
-                  <span className="font-mono text-judicial-800">secretario@satje.ec / [Ver en Gestión de Usuarios]</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-judicial-600">Abogado:</span>
-                  <span className="font-mono text-judicial-800">abogado@satje.ec / [Ver en Gestión de Usuarios]</span>
-                </div>
-                <div className="mt-2 p-2 bg-blue-50 rounded text-xs text-blue-800">
-                  <strong>Nota:</strong> Las contraseñas se generan automáticamente al crear usuarios.
-                  Ve a "Administración → Usuarios" para ver las contraseñas actuales.
-                </div>
+                {showPinInput && (
+                  <div className="mt-4 flex flex-col items-center gap-2">
+                    <input
+                      type="password"
+                      placeholder="Ingrese PIN"
+                      className="input-field w-32 text-center"
+                      value={pin}
+                      onChange={(e) => setPin(e.target.value)}
+                    />
+                    <button
+                      onClick={handlePinSubmit}
+                      className="btn-primary py-1 px-3 text-xs"
+                    >
+                      Verificar
+                    </button>
+                  </div>
+                )}
               </div>
-            </div>
+            ) : (
+              <>
+                <h3 className="text-sm font-medium text-judicial-900 mb-2">Acceso Rápido por Rol:</h3>
+                <p className="text-xs text-judicial-600 mb-4">Haga clic en un botón para llenar automáticamente los campos</p>
+                <div className="grid grid-cols-2 gap-3">
+                  <button
+                    onClick={() => handleQuickLogin('admin')}
+                    className="bg-red-600 hover:bg-red-700 text-white font-medium py-2 px-3 rounded-lg transition-colors duration-200 text-sm flex items-center justify-center gap-2"
+                  >
+                    <Settings className="h-4 w-4" />
+                    Administrador
+                  </button>
+                  <button
+                    onClick={() => handleQuickLogin('juez')}
+                    className="bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-3 rounded-lg transition-colors duration-200 text-sm flex items-center justify-center gap-2"
+                  >
+                    <Scale className="h-4 w-4" />
+                    Juez
+                  </button>
+                  <button
+                    onClick={() => handleQuickLogin('secretario')}
+                    className="bg-green-600 hover:bg-green-700 text-white font-medium py-2 px-3 rounded-lg transition-colors duration-200 text-sm flex items-center justify-center gap-2"
+                  >
+                    <User className="h-4 w-4" />
+                    Secretario
+                  </button>
+                  <button
+                    onClick={() => handleQuickLogin('abogado')}
+                    className="bg-purple-600 hover:bg-purple-700 text-white font-medium py-2 px-3 rounded-lg transition-colors duration-200 text-sm flex items-center justify-center gap-2"
+                  >
+                    <Briefcase className="h-4 w-4" />
+                    Abogado
+                  </button>
+                </div>
+
+                <div className="mt-4 pt-4 border-t border-judicial-200">
+                  <h4 className="text-xs font-medium text-judicial-700 mb-2">Credenciales del Sistema:</h4>
+                  <div className="space-y-1 text-xs">
+                    <div className="flex justify-between">
+                      <span className="text-judicial-600">Admin:</span>
+                      <span className="font-mono text-judicial-800">admin@satje.ec / [Ver en Gestión de Usuarios]</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-judicial-600">Juez:</span>
+                      <span className="font-mono text-judicial-800">juez@satje.ec / [Ver en Gestión de Usuarios]</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-judicial-600">Secretario:</span>
+                      <span className="font-mono text-judicial-800">secretario@satje.ec / [Ver en Gestión de Usuarios]</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-judicial-600">Abogado:</span>
+                      <span className="font-mono text-judicial-800">abogado@satje.ec / [Ver en Gestión de Usuarios]</span>
+                    </div>
+                    <div className="mt-2 p-2 bg-blue-50 rounded text-xs text-blue-800">
+                      <strong>Nota:</strong> Las contraseñas se generan automáticamente al crear usuarios.
+                      Ve a "Administración → Usuarios" para ver las contraseñas actuales.
+                    </div>
+                  </div>
+                </div>
+              </>
+            )}
           </div>
         </div>
       </div>
