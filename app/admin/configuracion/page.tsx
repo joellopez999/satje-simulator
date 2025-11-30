@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { Settings, Save, RefreshCw, Database, Mail, Bell, Shield, Globe } from 'lucide-react'
+import { Settings, Save, RefreshCw, Database, Mail, Bell, Shield, Globe, FileText } from 'lucide-react'
 import Sidebar from '@/components/Sidebar'
 import MobileHeader from '@/components/MobileHeader'
 import { useUser } from '@/app/providers'
@@ -90,6 +90,53 @@ export default function ConfiguracionPage() {
     }
   }
 
+  const [auditLogs, setAuditLogs] = useState<any[]>([])
+  const [auditFilterUser, setAuditFilterUser] = useState('all')
+  const [auditFilterAction, setAuditFilterAction] = useState('all')
+  const [isLoadingLogs, setIsLoadingLogs] = useState(false)
+
+  const loadAuditLogs = async () => {
+    setIsLoadingLogs(true)
+    try {
+      const params = new URLSearchParams()
+      if (auditFilterUser !== 'all') params.append('user_id', auditFilterUser)
+      if (auditFilterAction !== 'all') params.append('action', auditFilterAction)
+
+      const response = await fetch(`/api/audit-logs?${params.toString()}`)
+      if (response.ok) {
+        const data = await response.json()
+        setAuditLogs(data.logs || [])
+      }
+    } catch (error) {
+      console.error('Error loading audit logs:', error)
+    } finally {
+      setIsLoadingLogs(false)
+    }
+  }
+
+  useEffect(() => {
+    if (activeTab === 'audit') {
+      loadAuditLogs()
+    }
+  }, [activeTab, auditFilterUser, auditFilterAction])
+
+  const logAction = async (action: string, details: any) => {
+    try {
+      await fetch('/api/audit-logs', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          user_id: user?.id,
+          action,
+          details,
+          ip_address: 'client' // In a real app, this would be captured server-side
+        })
+      })
+    } catch (error) {
+      console.error('Error logging action:', error)
+    }
+  }
+
   const handleSave = async () => {
     setIsSaving(true)
     try {
@@ -100,6 +147,7 @@ export default function ConfiguracionPage() {
       })
 
       if (response.ok) {
+        await logAction('UPDATE_CONFIG', { timestamp: new Date().toISOString() })
         alert('Configuración guardada exitosamente')
       } else {
         throw new Error('Error saving config')
@@ -114,7 +162,7 @@ export default function ConfiguracionPage() {
 
   const handleReset = () => {
     if (confirm('¿Está seguro de restablecer la configuración a los valores por defecto?')) {
-      setConfig({
+      const defaultConfig = {
         general: {
           siteName: 'SATJE Simulator',
           siteDescription: 'Sistema Automático de Trámite Judicial Ecuatoriano',
@@ -139,7 +187,9 @@ export default function ConfiguracionPage() {
           passwordPolicy: 'medium',
           twoFactorEnabled: false
         }
-      })
+      }
+      setConfig(defaultConfig)
+      logAction('RESET_CONFIG', { timestamp: new Date().toISOString() })
     }
   }
 
@@ -147,7 +197,8 @@ export default function ConfiguracionPage() {
     { id: 'general', label: 'General', icon: Globe },
     { id: 'database', label: 'Base de Datos', icon: Database },
     { id: 'notifications', label: 'Notificaciones', icon: Bell },
-    { id: 'security', label: 'Seguridad', icon: Shield }
+    { id: 'security', label: 'Seguridad', icon: Shield },
+    { id: 'audit', label: 'Auditoría', icon: FileText }
   ]
 
   if (isLoading) {
@@ -215,8 +266,8 @@ export default function ConfiguracionPage() {
                         key={tab.id}
                         onClick={() => setActiveTab(tab.id)}
                         className={`flex items-center gap-2 py-2 px-1 border-b-2 font-medium text-sm ${activeTab === tab.id
-                            ? 'border-blue-500 text-blue-600'
-                            : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                          ? 'border-blue-500 text-blue-600'
+                          : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
                           }`}
                       >
                         <Icon className="h-4 w-4" />
@@ -551,6 +602,91 @@ export default function ConfiguracionPage() {
                         <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
                       </label>
                     </div>
+                  </div>
+                </div>
+              )}
+
+              {activeTab === 'audit' && (
+                <div className="space-y-6">
+                  <div className="flex items-center justify-between">
+                    <h3 className="text-lg font-semibold text-gray-900">Registro de Auditoría</h3>
+                    <button
+                      onClick={loadAuditLogs}
+                      className="text-blue-600 hover:text-blue-800 text-sm font-medium flex items-center gap-1"
+                    >
+                      <RefreshCw className={`h-4 w-4 ${isLoadingLogs ? 'animate-spin' : ''}`} />
+                      Actualizar
+                    </button>
+                  </div>
+
+                  {/* Filtros */}
+                  <div className="flex gap-4 mb-4">
+                    <div className="flex-1">
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Filtrar por Usuario
+                      </label>
+                      <input
+                        type="text"
+                        placeholder="ID de Usuario"
+                        value={auditFilterUser === 'all' ? '' : auditFilterUser}
+                        onChange={(e) => setAuditFilterUser(e.target.value || 'all')}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      />
+                    </div>
+                    <div className="flex-1">
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Filtrar por Acción
+                      </label>
+                      <input
+                        type="text"
+                        placeholder="Ej: UPDATE_CONFIG"
+                        value={auditFilterAction === 'all' ? '' : auditFilterAction}
+                        onChange={(e) => setAuditFilterAction(e.target.value || 'all')}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Tabla de Logs */}
+                  <div className="overflow-x-auto">
+                    <table className="min-w-full divide-y divide-gray-200">
+                      <thead className="bg-gray-50">
+                        <tr>
+                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Fecha</th>
+                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Usuario</th>
+                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Acción</th>
+                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Detalles</th>
+                        </tr>
+                      </thead>
+                      <tbody className="bg-white divide-y divide-gray-200">
+                        {auditLogs.length > 0 ? (
+                          auditLogs.map((log) => (
+                            <tr key={log.id}>
+                              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                {new Date(log.created_at).toLocaleString()}
+                              </td>
+                              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                                {log.users?.email || log.user_id}
+                              </td>
+                              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 font-medium">
+                                {log.action}
+                              </td>
+                              <td className="px-6 py-4 text-sm text-gray-500">
+                                <pre className="text-xs bg-gray-50 p-2 rounded max-w-xs overflow-auto">
+                                  {JSON.stringify(log.details, null, 2)}
+                                </pre>
+                              </td>
+                            </tr>
+                          ))
+                        ) : (
+                          <tr>
+                            <td colSpan={4} className="px-6 py-4 text-center text-sm text-gray-500">
+                              No hay registros de auditoría
+                            </td>
+                          </tr>
+                        )}
+                      </tbody>
+                    </table>
                   </div>
                 </div>
               )}
