@@ -242,15 +242,30 @@ export const getPendingWritings = async (): Promise<any[]> => {
 }
 
 export const markWritingAsDispatched = async (actividadId: string, despachadoPor: string): Promise<boolean> => {
+  // First fetch existing metadata to avoid overwriting
+  const { data: currentData, error: fetchError } = await supabase
+    .from('actividades')
+    .select('metadata')
+    .eq('id', actividadId)
+    .single()
+
+  if (fetchError) {
+    console.error('Error fetching activity for dispatch:', fetchError)
+    return false
+  }
+
+  const currentMetadata = currentData?.metadata || {}
+  const newMetadata = {
+    ...currentMetadata,
+    despachado: true,
+    despachado_por: despachadoPor,
+    fecha_despacho: new Date().toISOString()
+  }
+
   const { error } = await supabase
     .from('actividades')
     .update({
-      // We might need to update metadata or specific columns
-      metadata: { despachado: true, despachado_por: despachadoPor, fecha_despacho: new Date().toISOString() }
-      // If columns exist:
-      // despachado: true,
-      // despachado_por: despachadoPor,
-      // fecha_despacho: new Date().toISOString()
+      metadata: newMetadata
     })
     .eq('id', actividadId)
 

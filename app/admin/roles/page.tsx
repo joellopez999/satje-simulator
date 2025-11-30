@@ -65,49 +65,20 @@ export default function RolesPage() {
     loadRoles()
   }, [])
 
-  const loadRoles = () => {
+  const loadRoles = async () => {
     try {
-      const storedRoles = JSON.parse(localStorage.getItem('satje_roles') || '[]')
-      if (storedRoles.length === 0) {
-        // Crear roles por defecto
-        const defaultRoles = [
-          {
-            id: 'admin',
-            name: 'Administrador',
-            description: 'Acceso completo al sistema',
-            permissions: availablePermissions,
-            color: 'red',
-            icon: 'admin'
-          },
-          {
-            id: 'juez',
-            name: 'Juez',
-            description: 'Gestión de procesos judiciales',
-            permissions: ['read_processes', 'write_processes', 'create_providencias', 'view_reports'],
-            color: 'blue',
-            icon: 'juez'
-          },
-          {
-            id: 'secretario',
-            name: 'Secretario',
-            description: 'Actuaciones de secretaría',
-            permissions: ['read_processes', 'write_processes', 'manage_secretaria', 'view_reports'],
-            color: 'green',
-            icon: 'secretario'
-          },
-          {
-            id: 'abogado',
-            name: 'Abogado',
-            description: 'Acceso a procesos y escritos',
-            permissions: ['read_processes', 'create_escritos'],
-            color: 'purple',
-            icon: 'abogado'
-          }
-        ]
-        setRoles(defaultRoles)
-        localStorage.setItem('satje_roles', JSON.stringify(defaultRoles))
+      const response = await fetch('/api/roles')
+      if (response.ok) {
+        const data = await response.json()
+        if (data && data.length > 0) {
+          setRoles(data)
+        } else {
+          // Si no hay roles en BD, usar defaults (esto solo pasará antes de correr la migración)
+          // O podríamos forzar la creación vía API si está vacío
+          setRoles([])
+        }
       } else {
-        setRoles(storedRoles)
+        console.error('Error fetching roles')
       }
     } catch (error) {
       console.error('Error loading roles:', error)
@@ -138,11 +109,11 @@ export default function RolesPage() {
     setShowEditModal(true)
   }
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    
+
     if (showCreateModal) {
-      const newRole: Role = {
+      const newRole = {
         id: `role-${Date.now()}`,
         name: formData.name,
         description: formData.description,
@@ -150,29 +121,65 @@ export default function RolesPage() {
         color: formData.color,
         icon: 'user'
       }
-      
-      const updatedRoles = [...roles, newRole]
-      setRoles(updatedRoles)
-      localStorage.setItem('satje_roles', JSON.stringify(updatedRoles))
-      setShowCreateModal(false)
+
+      try {
+        const response = await fetch('/api/roles', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(newRole)
+        })
+
+        if (response.ok) {
+          await loadRoles()
+          setShowCreateModal(false)
+        } else {
+          alert('Error al crear rol')
+        }
+      } catch (error) {
+        console.error('Error creating role:', error)
+        alert('Error al crear rol')
+      }
     } else if (showEditModal && editingRole) {
-      const updatedRoles = roles.map(role => 
-        role.id === editingRole.id 
-          ? { ...role, ...formData }
-          : role
-      )
-      setRoles(updatedRoles)
-      localStorage.setItem('satje_roles', JSON.stringify(updatedRoles))
-      setShowEditModal(false)
-      setEditingRole(null)
+      try {
+        const response = await fetch('/api/roles', {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            id: editingRole.id,
+            ...formData
+          })
+        })
+
+        if (response.ok) {
+          await loadRoles()
+          setShowEditModal(false)
+          setEditingRole(null)
+        } else {
+          alert('Error al actualizar rol')
+        }
+      } catch (error) {
+        console.error('Error updating role:', error)
+        alert('Error al actualizar rol')
+      }
     }
   }
 
-  const handleDeleteRole = (roleId: string) => {
+  const handleDeleteRole = async (roleId: string) => {
     if (confirm('¿Está seguro de eliminar este rol?')) {
-      const updatedRoles = roles.filter(role => role.id !== roleId)
-      setRoles(updatedRoles)
-      localStorage.setItem('satje_roles', JSON.stringify(updatedRoles))
+      try {
+        const response = await fetch(`/api/roles?id=${roleId}`, {
+          method: 'DELETE'
+        })
+
+        if (response.ok) {
+          await loadRoles()
+        } else {
+          alert('Error al eliminar rol')
+        }
+      } catch (error) {
+        console.error('Error deleting role:', error)
+        alert('Error al eliminar rol')
+      }
     }
   }
 
@@ -207,12 +214,12 @@ export default function RolesPage() {
     <div className="min-h-screen bg-gray-50">
       {/* Mobile Header */}
       <MobileHeader onMenuClick={() => setIsSidebarOpen(true)} />
-      
+
       <div className="flex">
         {/* Sidebar */}
-        <Sidebar 
-          isOpen={isSidebarOpen} 
-          onClose={() => setIsSidebarOpen(false)} 
+        <Sidebar
+          isOpen={isSidebarOpen}
+          onClose={() => setIsSidebarOpen(false)}
         />
 
         {/* Main Content */}
@@ -272,13 +279,13 @@ export default function RolesPage() {
                         )}
                       </div>
                     </div>
-                    
+
                     <div className="mb-4">
                       <span className={`px-2 py-1 text-xs font-medium rounded-full ${getColorClass(role.color)}`}>
                         {role.name}
                       </span>
                     </div>
-                    
+
                     <div>
                       <h4 className="text-sm font-medium text-gray-700 mb-2">Permisos:</h4>
                       <div className="flex flex-wrap gap-1">

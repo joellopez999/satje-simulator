@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react'
 import { Inbox, FileText, Clock, AlertCircle, CheckCircle, Plus, Eye, CheckSquare, RefreshCw, Calendar } from 'lucide-react'
 import Sidebar from '@/components/Sidebar'
 import MobileHeader from '@/components/MobileHeader'
-import { createActivity, markWritingAsDispatched } from '@/lib/storage'
+import { markWritingAsDispatched } from '@/lib/storage'
 import { useUser } from '@/app/providers'
 
 export default function OperadoresPage() {
@@ -23,11 +23,16 @@ export default function OperadoresPage() {
     solicitud_secretaria: ''
   })
 
+  // New state for UI enhancements
+  const [showHistoric, setShowHistoric] = useState(false)
+  const [filter, setFilter] = useState<'todas' | 'pendientes' | 'completadas'>('todas')
+  const [searchTerm, setSearchTerm] = useState('')
+
   useEffect(() => {
     const loadProcesses = async () => {
       try {
         // Usar API Route para cargar procesos
-        const response = await fetch('/api/processes/search')
+        const response = await fetch(`/api/processes/search?t=${Date.now()}`, { cache: 'no-store' })
         if (!response.ok) throw new Error('Error fetching processes')
         const allProcesses = await response.json()
         setProcesses(allProcesses)
@@ -55,89 +60,95 @@ export default function OperadoresPage() {
     }
   }, [])
 
-  // Generar escritos pendientes basados en procesos reales
-  const escritosPendientes = processes.flatMap(process =>
-    process.expedientes?.flatMap((expediente: any) =>
-      expediente.actividades
-        ?.filter((actividad: any) => actividad.tipo === 'escrito' && !actividad.despachado)
-        ?.map((actividad: any) => ({
-          id: actividad.id,
-          numero_causa: process.numero_causa,
-          actor: process.actor,
-          demandado: process.demandado,
-          titulo: actividad.titulo,
-          fecha_escrito: actividad.fecha_creacion,
-          dias_pendiente: Math.floor((Date.now() - new Date(actividad.fecha_creacion).getTime()) / (1000 * 60 * 60 * 24)),
-          estado: Math.floor((Date.now() - new Date(actividad.fecha_creacion).getTime()) / (1000 * 60 * 60 * 24)) > 7 ? 'vencido' :
-            Math.floor((Date.now() - new Date(actividad.fecha_creacion).getTime()) / (1000 * 60 * 60 * 24)) > 3 ? 'urgente' : 'normal',
-          contenido: actividad.contenido,
-          expediente_id: expediente.id,
-          despachado: actividad.despachado || false,
-          fecha_despacho: actividad.fecha_despacho,
-          despachado_por: actividad.despachado_por,
-          // Información del usuario creador
-          creado_por: actividad.creado_por,
-          usuario_creador: actividad.metadata?.usuario_creador || null,
-          tipo_petitorio: actividad.metadata?.tipo_petitorio || 'Escrito'
-        })) || []
-    ) || []
-  ).filter(Boolean)
+  // Helper to extract writings from processes
+  const getAllWritings = () => {
+    return processes.flatMap(process =>
+      process.expedientes?.flatMap((expediente: any) =>
+        expediente.actividades
+          ?.filter((actividad: any) => actividad.tipo === 'escrito')
+          ?.map((actividad: any) => ({
+            id: actividad.id,
+            numero_causa: process.numero_causa,
+            actor: process.actor,
+            demandado: process.demandado,
+            titulo: actividad.titulo,
+            fecha_escrito: actividad.fecha_creacion,
+            dias_pendiente: Math.floor((Date.now() - new Date(actividad.fecha_creacion).getTime()) / (1000 * 60 * 60 * 24)),
+            estado_tiempo: Math.floor((Date.now() - new Date(actividad.fecha_creacion).getTime()) / (1000 * 60 * 60 * 24)) > 7 ? 'vencido' :
+              Math.floor((Date.now() - new Date(actividad.fecha_creacion).getTime()) / (1000 * 60 * 60 * 24)) > 3 ? 'urgente' : 'normal',
+            contenido: actividad.contenido,
+            expediente_id: expediente.id,
+            despachado: actividad.despachado || actividad.metadata?.despachado || false,
+            fecha_despacho: actividad.fecha_despacho || actividad.metadata?.fecha_despacho,
+            despachado_por: actividad.despachado_por || actividad.metadata?.despachado_por,
+            creado_por: actividad.creado_por,
+            usuario_creador: actividad.metadata?.usuario_creador || null,
+            tipo_petitorio: actividad.metadata?.tipo_petitorio || 'Escrito'
+          })) || []
+      ) || []
+    ).filter(Boolean).sort((a, b) => new Date(b.fecha_escrito).getTime() - new Date(a.fecha_escrito).getTime())
+  }
 
-  // Generar escritos despachados recientemente (últimos 7 días)
-  const escritosDespachados = processes.flatMap(process =>
-    process.expedientes?.flatMap((expediente: any) =>
-      expediente.actividades
-        ?.filter((actividad: any) =>
-          actividad.tipo === 'escrito' &&
-          actividad.despachado &&
-          actividad.fecha_despacho &&
-          (Date.now() - new Date(actividad.fecha_despacho).getTime()) < (7 * 24 * 60 * 60 * 1000)
-        )
-        ?.map((actividad: any) => ({
-          id: actividad.id,
-          numero_causa: process.numero_causa,
-          actor: process.actor,
-          demandado: process.demandado,
-          titulo: actividad.titulo,
-          fecha_escrito: actividad.fecha_creacion,
-          fecha_despacho: actividad.fecha_despacho,
-          despachado_por: actividad.despachado_por,
-          contenido: actividad.contenido,
-          expediente_id: expediente.id,
-          // Información del usuario creador
-          creado_por: actividad.creado_por,
-          usuario_creador: actividad.metadata?.usuario_creador || null,
-          tipo_petitorio: actividad.metadata?.tipo_petitorio || 'Escrito'
-        })) || []
-    ) || []
-  ).filter(Boolean).sort((a, b) => new Date(b.fecha_despacho).getTime() - new Date(a.fecha_despacho).getTime())
+  const allWritings = getAllWritings()
+
+  // Filter logic
+  const filteredWritings = allWritings.filter(escrito => {
+    // 1. Filter by status (Pendiente vs Completada)
+    const isDespachado = escrito.despachado
+    if (filter === 'pendientes' && isDespachado) return false
+    if (filter === 'completadas' && !isDespachado) return false
+
+    // 2. Filter by Historic vs Recent (only for dispatched)
+    if (isDespachado && !showHistoric) {
+      const fechaDespacho = new Date(escrito.fecha_despacho)
+      const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000)
+      if (fechaDespacho < sevenDaysAgo) return false
+    }
+
+    // 3. Search filter
+    if (searchTerm) {
+      const term = searchTerm.toLowerCase()
+      return (
+        escrito.numero_causa.toLowerCase().includes(term) ||
+        escrito.titulo.toLowerCase().includes(term) ||
+        escrito.actor.toLowerCase().includes(term) ||
+        escrito.demandado.toLowerCase().includes(term)
+      )
+    }
+
+    return true
+  })
+
+  const escritosPendientes = allWritings.filter(w => !w.despachado)
+  const escritosCompletados = allWritings.filter(w => w.despachado)
+
+  const estadisticas = {
+    total: allWritings.length,
+    pendientes: escritosPendientes.length,
+    completadas: escritosCompletados.length,
+    urgentes: escritosPendientes.filter(w => w.estado_tiempo === 'urgente').length,
+    vencidos: escritosPendientes.filter(w => w.estado_tiempo === 'vencido').length
+  }
 
   const getEstadoColor = (estado: string) => {
     switch (estado) {
-      case 'normal':
-        return 'bg-green-100 text-green-800'
-      case 'urgente':
-        return 'bg-yellow-100 text-yellow-800'
-      case 'vencido':
-        return 'bg-red-100 text-red-800'
-      default:
-        return 'bg-gray-100 text-gray-800'
+      case 'normal': return 'bg-green-100 text-green-800'
+      case 'urgente': return 'bg-yellow-100 text-yellow-800'
+      case 'vencido': return 'bg-red-100 text-red-800'
+      default: return 'bg-gray-100 text-gray-800'
     }
   }
 
   const getEstadoIcon = (estado: string) => {
     switch (estado) {
-      case 'normal':
-        return <CheckCircle className="h-4 w-4" />
-      case 'urgente':
-        return <Clock className="h-4 w-4" />
-      case 'vencido':
-        return <AlertCircle className="h-4 w-4" />
-      default:
-        return null
+      case 'normal': return <CheckCircle className="h-4 w-4" />
+      case 'urgente': return <Clock className="h-4 w-4" />
+      case 'vencido': return <AlertCircle className="h-4 w-4" />
+      default: return null
     }
   }
 
+  // ... (handleCrearProvidencia, handleSubmitProvidencia, handleMarcarDespachado remain same)
   const handleCrearProvidencia = (escrito: any) => {
     setSelectedEscrito(escrito)
     setShowProvidenciaForm(true)
@@ -173,63 +184,70 @@ export default function OperadoresPage() {
     }
 
     try {
+      const expedienteId = selectedEscrito.expediente_id
+
       // Crear la providencia
-      // Crear la providencia usando API Route
-      const providenciaResponse = await fetch('/api/activities/create', {
+      const newProvidenciaData = {
+        expediente_id: expedienteId,
+        tipo: 'providencia',
+        titulo: providenciaData.titulo,
+        contenido: providenciaData.contenido,
+        creado_por: user?.id || 'Juez',
+        fecha_creacion: new Date().toISOString(),
+        metadata: {
+          tipo_providencia: providenciaData.tipo,
+          solicitar_secretaria: providenciaData.solicitar_secretaria,
+          solicitud_secretaria: providenciaData.solicitud_secretaria,
+          escrito_vinculado: selectedEscrito?.id
+        }
+      }
+
+      const response = await fetch('/api/activities/create', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          expediente_id: selectedEscrito.expediente_id,
-          tipo: 'providencia',
-          titulo: providenciaData.titulo,
-          contenido: providenciaData.contenido,
-          creado_por: user?.id || '',
-          fecha_creacion: new Date().toISOString(),
-          metadata: {
-            tipo_providencia: providenciaData.tipo,
-            escrito_relacionado: selectedEscrito.id,
-            numero_causa: selectedEscrito.numero_causa
-          }
-        }),
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(newProvidenciaData)
       })
 
-      if (!providenciaResponse.ok) {
-        const errorData = await providenciaResponse.json()
-        throw new Error(errorData.error || 'Error al crear providencia')
-      }
+      if (!response.ok) throw new Error('Error al crear providencia')
+      const newProvidencia = await response.json()
 
-      const newProvidencia = await providenciaResponse.json()
-
-      if (!newProvidencia) throw new Error('Error al crear providencia')
-
-      // Marcar el escrito como despachado
-      await markWritingAsDispatched(selectedEscrito.id, 'Juez del Sistema')
-
-      // Si se solicita actividad a secretaría, crear la solicitud como una actividad interna
+      // Si hay solicitud a secretaría, crear la actividad pendiente
       if (providenciaData.solicitar_secretaria) {
+        const secretariaData = {
+          expediente_id: expedienteId,
+          tipo: 'razon', // O 'otros'
+          titulo: `SOLICITUD SECRETARÍA: ${providenciaData.titulo}`,
+          contenido: providenciaData.solicitud_secretaria,
+          creado_por: user?.id || 'Juez',
+          fecha_creacion: new Date().toISOString(),
+          metadata: {
+            solicitud_secretaria: true,
+            providencia_origen: newProvidencia.id,
+            estado: 'pendiente',
+            solicitado_por: user?.name,
+            solicitado_por_id: user?.id,
+            numero_causa: selectedEscrito.numero_causa,
+            instrucciones: providenciaData.solicitud_secretaria,
+            fecha_solicitud: new Date().toISOString()
+          }
+        }
+
         await fetch('/api/activities/create', {
           method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            expediente_id: selectedEscrito.expediente_id,
-            tipo: 'otros', // Usamos 'otros' para solicitudes internas
-            titulo: `SOLICITUD A SECRETARÍA: ${providenciaData.titulo}`,
-            contenido: providenciaData.solicitud_secretaria,
-            creado_por: user?.id || '',
-            fecha_creacion: new Date().toISOString(),
-            metadata: {
-              solicitud_secretaria: true,
-              providencia_id: newProvidencia.id,
-              estado: 'pendiente',
-              solicitado_por: 'Juez del Sistema'
-            }
-          }),
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(secretariaData)
         })
       }
+
+      // Marcar el escrito como despachado
+      await fetch('/api/activities/dispatch', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          actividadId: selectedEscrito.id,
+          despachadoPor: user?.name || 'Juez'
+        })
+      })
 
       console.log('Providencia creada:', newProvidencia)
       const successMessage = providenciaData.solicitar_secretaria
@@ -247,8 +265,8 @@ export default function OperadoresPage() {
         solicitud_secretaria: ''
       })
 
-      // Recargar procesos para actualizar la vista
-      const refreshResponse = await fetch('/api/processes/search')
+      // Recargar procesos
+      const refreshResponse = await fetch(`/api/processes/search?t=${Date.now()}`, { cache: 'no-store' })
       if (!refreshResponse.ok) throw new Error('Error fetching processes')
       const updatedProcesses = await refreshResponse.json()
       setProcesses(updatedProcesses)
@@ -261,13 +279,24 @@ export default function OperadoresPage() {
   const handleMarcarDespachado = async (escrito: any) => {
     if (confirm(`¿Está seguro de marcar como despachado el escrito "${escrito.titulo}"?`)) {
       try {
-        // Marcar el escrito como despachado
-        await markWritingAsDispatched(escrito.id, 'Juez del Sistema')
+        const response = await fetch('/api/activities/dispatch', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            actividadId: escrito.id,
+            despachadoPor: 'Juez del Sistema'
+          }),
+        })
 
-        // Recargar procesos para actualizar la vista
-        const response = await fetch('/api/processes/search')
-        if (!response.ok) throw new Error('Error fetching processes')
-        const updatedProcesses = await response.json()
+        if (!response.ok) {
+          throw new Error('Error al marcar como despachado')
+        }
+
+        const refreshResponse = await fetch(`/api/processes/search?t=${Date.now()}`, { cache: 'no-store' })
+        if (!refreshResponse.ok) throw new Error('Error fetching processes')
+        const updatedProcesses = await refreshResponse.json()
         setProcesses(updatedProcesses)
 
         alert('Escrito marcado como despachado')
@@ -278,20 +307,16 @@ export default function OperadoresPage() {
     }
   }
 
-
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* Mobile Header */}
       <MobileHeader onMenuClick={() => setIsSidebarOpen(true)} />
 
       <div className="flex">
-        {/* Sidebar */}
         <Sidebar
           isOpen={isSidebarOpen}
           onClose={() => setIsSidebarOpen(false)}
         />
 
-        {/* Main Content */}
         <div className="flex-1 lg:ml-64 p-4 lg:p-8">
           <div className="max-w-7xl mx-auto">
             {/* Header */}
@@ -303,240 +328,262 @@ export default function OperadoresPage() {
                     Buzón de Despacho
                   </h1>
                 </div>
-                <button
-                  onClick={async () => {
-                    const response = await fetch('/api/processes/search')
-                    if (!response.ok) throw new Error('Error fetching processes')
-                    const allProcesses = await response.json()
-                    setProcesses(allProcesses)
-                  }}
-                  className="btn-secondary flex items-center gap-2"
-                >
-                  <RefreshCw className="h-4 w-4" />
-                  Actualizar
-                </button>
               </div>
               <p className="text-gray-600">
                 Gestione los escritos pendientes de despacho judicial
               </p>
             </div>
 
-            {/* Stats */}
+            {/* Estadísticas */}
             <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
               <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-                <div className="flex items-center">
+                <div className="flex items-center gap-3">
                   <FileText className="h-8 w-8 text-blue-600" />
-                  <div className="ml-4">
-                    <p className="text-sm font-medium text-gray-600">Total Escritos</p>
-                    <p className="text-2xl font-bold text-gray-900">{escritosPendientes.length}</p>
+                  <div>
+                    <p className="text-2xl font-bold text-judicial-900">{estadisticas.total}</p>
+                    <p className="text-sm text-judicial-600">Total Escritos</p>
                   </div>
                 </div>
               </div>
+
               <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-                <div className="flex items-center">
-                  <div className="h-8 w-8 bg-green-100 rounded-full flex items-center justify-center">
-                    <CheckCircle className="h-4 w-4 text-green-600" />
-                  </div>
-                  <div className="ml-4">
-                    <p className="text-sm font-medium text-gray-600">Normales</p>
-                    <p className="text-2xl font-bold text-gray-900">
-                      {escritosPendientes.filter(e => e.estado === 'normal').length}
-                    </p>
+                <div className="flex items-center gap-3">
+                  <Clock className="h-8 w-8 text-orange-600" />
+                  <div>
+                    <p className="text-2xl font-bold text-judicial-900">{estadisticas.pendientes}</p>
+                    <p className="text-sm text-judicial-600">Pendientes</p>
                   </div>
                 </div>
               </div>
+
               <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-                <div className="flex items-center">
-                  <div className="h-8 w-8 bg-yellow-100 rounded-full flex items-center justify-center">
-                    <Clock className="h-4 w-4 text-yellow-600" />
-                  </div>
-                  <div className="ml-4">
-                    <p className="text-sm font-medium text-gray-600">Urgentes</p>
-                    <p className="text-2xl font-bold text-gray-900">
-                      {escritosPendientes.filter(e => e.estado === 'urgente').length}
-                    </p>
+                <div className="flex items-center gap-3">
+                  <CheckCircle className="h-8 w-8 text-green-600" />
+                  <div>
+                    <p className="text-2xl font-bold text-judicial-900">{estadisticas.completadas}</p>
+                    <p className="text-sm text-judicial-600">Despachados</p>
                   </div>
                 </div>
               </div>
+
               <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-                <div className="flex items-center">
-                  <div className="h-8 w-8 bg-red-100 rounded-full flex items-center justify-center">
-                    <AlertCircle className="h-4 w-4 text-red-600" />
-                  </div>
-                  <div className="ml-4">
-                    <p className="text-sm font-medium text-gray-600">Vencidos</p>
-                    <p className="text-2xl font-bold text-gray-900">
-                      {escritosPendientes.filter(e => e.estado === 'vencido').length}
-                    </p>
+                <div className="flex items-center gap-3">
+                  <AlertCircle className="h-8 w-8 text-red-600" />
+                  <div>
+                    <p className="text-2xl font-bold text-judicial-900">{estadisticas.vencidos}</p>
+                    <p className="text-sm text-judicial-600">Vencidos</p>
                   </div>
                 </div>
               </div>
             </div>
 
-            {/* Escritos Pendientes */}
+            {/* Filtros y Búsqueda */}
+            <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 mb-6">
+              <div className="space-y-4">
+                <div>
+                  <input
+                    type="text"
+                    placeholder="Buscar por número de causa, título, actor o demandado..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  />
+                </div>
+
+                <div className="flex flex-col sm:flex-row gap-3">
+                  <div className="flex flex-wrap gap-2">
+                    <button
+                      onClick={() => setFilter('todas')}
+                      className={`px-3 py-2 rounded-lg font-medium transition-colors text-sm ${filter === 'todas'
+                        ? 'bg-blue-600 text-white'
+                        : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                        }`}
+                    >
+                      Todas
+                    </button>
+                    <button
+                      onClick={() => setFilter('pendientes')}
+                      className={`px-3 py-2 rounded-lg font-medium transition-colors text-sm ${filter === 'pendientes'
+                        ? 'bg-blue-600 text-white'
+                        : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                        }`}
+                    >
+                      Pendientes
+                    </button>
+                    <button
+                      onClick={() => setFilter('completadas')}
+                      className={`px-3 py-2 rounded-lg font-medium transition-colors text-sm ${filter === 'completadas'
+                        ? 'bg-blue-600 text-white'
+                        : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                        }`}
+                    >
+                      Despachados
+                    </button>
+                  </div>
+
+                  <div className="flex flex-wrap gap-2 ml-auto">
+                    <button
+                      onClick={async () => {
+                        setIsLoading(true)
+                        const response = await fetch(`/api/processes/search?t=${Date.now()}`, { cache: 'no-store' })
+                        if (response.ok) {
+                          const allProcesses = await response.json()
+                          setProcesses(allProcesses)
+                        }
+                        setIsLoading(false)
+                      }}
+                      className="px-3 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-2 text-sm"
+                    >
+                      <RefreshCw className="h-4 w-4" />
+                      Actualizar
+                    </button>
+                    <button
+                      onClick={() => setShowHistoric(!showHistoric)}
+                      className={`px-3 py-2 rounded-lg transition-colors flex items-center gap-2 text-sm ${showHistoric
+                        ? 'bg-purple-600 text-white hover:bg-purple-700'
+                        : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                        }`}
+                    >
+                      <Calendar className="h-4 w-4" />
+                      {showHistoric ? 'Ocultar Histórico' : 'Ver Histórico'}
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Lista de Escritos */}
             <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
               <div className="px-6 py-4 border-b border-gray-200">
-                <h3 className="text-lg font-semibold text-gray-900">Escritos Pendientes de Despacho</h3>
+                <h3 className="text-lg font-semibold text-gray-900">
+                  {filter === 'pendientes' ? 'Escritos Pendientes' :
+                    filter === 'completadas' ? 'Escritos Despachados' :
+                      'Todos los Escritos'}
+                  {showHistoric && filter === 'completadas' && ' (Histórico)'}
+                </h3>
               </div>
 
               <div className="divide-y divide-gray-200 overflow-x-auto">
-                {escritosPendientes.map((escrito) => (
-                  <div key={escrito.id} className="p-6 hover:bg-gray-50 min-w-0">
-                    <div className="flex items-start justify-between">
-                      <div className="flex-1">
-                        <div className="flex items-center gap-3 mb-2">
-                          <h4 className="text-lg font-semibold text-gray-900">
-                            {escrito.titulo}
-                          </h4>
-                          <span className={`px-2 py-1 text-xs font-medium rounded-full flex items-center gap-1 ${getEstadoColor(escrito.estado)}`}>
-                            {getEstadoIcon(escrito.estado)}
-                            {escrito.estado === 'normal' ? 'Normal' : escrito.estado === 'urgente' ? 'Urgente' : 'Vencido'}
-                          </span>
-                        </div>
-
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-3">
-                          <div>
-                            <p className="text-sm text-gray-600">
-                              <span className="font-medium">Proceso:</span> {escrito.numero_causa}
-                            </p>
-                            <p className="text-sm text-gray-600">
-                              <span className="font-medium">Actor:</span> {escrito.actor}
-                            </p>
+                {filteredWritings.length === 0 ? (
+                  <div className="p-8 text-center text-gray-500">
+                    <Inbox className="h-12 w-12 mx-auto mb-4 text-gray-300" />
+                    <p>No se encontraron escritos con los filtros seleccionados</p>
+                  </div>
+                ) : (
+                  filteredWritings.map((escrito) => (
+                    <div key={escrito.id} className="p-6 hover:bg-gray-50 min-w-0">
+                      <div className="flex items-start justify-between">
+                        <div className="flex-1">
+                          <div className="flex items-center gap-3 mb-2">
+                            <h4 className="text-lg font-semibold text-gray-900">
+                              {escrito.titulo}
+                            </h4>
+                            {escrito.despachado ? (
+                              <span className="px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800 flex items-center gap-1">
+                                <CheckCircle className="h-3 w-3" />
+                                Despachado
+                              </span>
+                            ) : (
+                              <span className={`px-2 py-1 text-xs font-medium rounded-full flex items-center gap-1 ${getEstadoColor(escrito.estado_tiempo)}`}>
+                                {getEstadoIcon(escrito.estado_tiempo)}
+                                {escrito.estado_tiempo === 'normal' ? 'Normal' : escrito.estado_tiempo === 'urgente' ? 'Urgente' : 'Vencido'}
+                              </span>
+                            )}
                           </div>
-                          <div>
-                            <p className="text-sm text-gray-600">
-                              <span className="font-medium">Demandado:</span> {escrito.demandado}
-                            </p>
-                            <p className="text-sm text-gray-600">
-                              <span className="font-medium">Días pendiente:</span> {escrito.dias_pendiente} días
-                            </p>
-                          </div>
-                        </div>
 
-                        <p className="text-sm text-gray-600 mb-3">
-                          <span className="font-medium">Fecha del escrito:</span> {new Date(escrito.fecha_escrito).toLocaleDateString('es-EC')}
-                        </p>
-
-                        {/* Información del usuario creador */}
-                        {escrito.usuario_creador && (
-                          <div className="mb-3 p-3 bg-blue-50 border border-blue-200 rounded-lg">
-                            <h5 className="text-sm font-medium text-blue-900 mb-2">Información del Creador</h5>
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-2 text-xs">
-                              <p className="text-blue-800">
-                                <span className="font-medium">Nombre:</span> {escrito.usuario_creador.nombre}
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-3">
+                            <div>
+                              <p className="text-sm text-gray-600">
+                                <span className="font-medium">Proceso:</span> {escrito.numero_causa}
                               </p>
-                              <p className="text-blue-800">
-                                <span className="font-medium">Rol:</span> {escrito.usuario_creador.rol}
-                              </p>
-                              <p className="text-blue-800">
-                                <span className="font-medium">Email:</span> {escrito.usuario_creador.email}
-                              </p>
-                              <p className="text-blue-800">
-                                <span className="font-medium">Tipo de Petitorio:</span> {escrito.tipo_petitorio}
+                              <p className="text-sm text-gray-600">
+                                <span className="font-medium">Actor:</span> {escrito.actor}
                               </p>
                             </div>
+                            <div>
+                              <p className="text-sm text-gray-600">
+                                <span className="font-medium">Demandado:</span> {escrito.demandado}
+                              </p>
+                              {!escrito.despachado && (
+                                <p className="text-sm text-gray-600">
+                                  <span className="font-medium">Días pendiente:</span> {escrito.dias_pendiente} días
+                                </p>
+                              )}
+                            </div>
                           </div>
-                        )}
 
-                        <p className="text-sm text-gray-700 bg-gray-50 p-3 rounded-lg">
-                          {escrito.contenido}
-                        </p>
-                      </div>
-
-                      <div className="ml-6 flex flex-col gap-2 min-w-0 flex-shrink-0">
-                        <button
-                          onClick={() => alert(`Escrito: ${escrito.titulo}\nContenido: ${escrito.contenido}`)}
-                          className="bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-3 rounded-lg transition-colors duration-200 text-xs flex items-center gap-1 whitespace-nowrap"
-                        >
-                          <Eye className="h-3 w-3" />
-                          Ver Escrito
-                        </button>
-                        <button
-                          onClick={() => {
-                            if (confirm(`¿Está seguro de que desea crear una providencia para el escrito "${escrito.titulo}"?\n\nProceso: ${escrito.numero_causa}\nFecha: ${new Date(escrito.fecha_escrito).toLocaleDateString('es-EC')}`)) {
-                              handleCrearProvidencia(escrito)
-                            }
-                          }}
-                          className="bg-green-600 hover:bg-green-700 text-white font-medium py-2 px-3 rounded-lg transition-colors duration-200 text-xs flex items-center gap-1 whitespace-nowrap"
-                        >
-                          <Plus className="h-3 w-3" />
-                          Crear Providencia
-                        </button>
-                        <button
-                          onClick={() => {
-                            if (confirm(`¿Está seguro de que desea marcar como despachado el escrito "${escrito.titulo}"?\n\nProceso: ${escrito.numero_causa}\nEsta acción no se puede deshacer.`)) {
-                              handleMarcarDespachado(escrito)
-                            }
-                          }}
-                          className="bg-gray-600 hover:bg-gray-700 text-white font-medium py-2 px-3 rounded-lg transition-colors duration-200 text-xs flex items-center gap-1 whitespace-nowrap"
-                        >
-                          <CheckSquare className="h-3 w-3" />
-                          Marcar Despachado
-                        </button>
-                        <button
-                          onClick={() => window.open(`/proceso/${processes.find(p => p.numero_causa === escrito.numero_causa)?.id}`, '_blank')}
-                          className="bg-purple-600 hover:bg-purple-700 text-white font-medium py-2 px-3 rounded-lg transition-colors duration-200 text-xs whitespace-nowrap"
-                        >
-                          Ver Expediente
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            {/* Escritos Despachados Recientemente */}
-            {escritosDespachados.length > 0 && (
-              <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden mt-8">
-                <div className="px-6 py-4 border-b border-gray-200">
-                  <h3 className="text-lg font-semibold text-gray-900">Escritos Despachados Recientemente</h3>
-                  <p className="text-sm text-gray-600">Últimos 7 días</p>
-                </div>
-
-                <div className="divide-y divide-gray-200 overflow-x-auto">
-                  {escritosDespachados.map((escrito) => (
-                    <div key={escrito.id} className="p-6 hover:bg-gray-50 min-w-0">
-                      <div className="flex justify-between items-start">
-                        <div className="flex-1">
-                          <div className="flex items-center gap-2 mb-2">
-                            <span className="px-3 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800 flex items-center gap-1">
-                              <CheckCircle className="h-4 w-4" />
-                              Despachado
-                            </span>
-                            <h4 className="font-semibold text-gray-900">{escrito.titulo}</h4>
-                          </div>
-                          <p className="text-sm text-gray-700 mb-1">
-                            <strong>Causa:</strong> {escrito.numero_causa}
+                          <p className="text-sm text-gray-600 mb-3">
+                            <span className="font-medium">Fecha del escrito:</span> {new Date(escrito.fecha_escrito).toLocaleDateString('es-EC')}
                           </p>
-                          <p className="text-sm text-gray-700 mb-1">
-                            <strong>Actor:</strong> {escrito.actor} | <strong>Demandado:</strong> {escrito.demandado}
-                          </p>
+
+                          {escrito.despachado && (
+                            <p className="text-sm text-green-700 mb-3 bg-green-50 p-2 rounded">
+                              <span className="font-medium">Despachado:</span> {new Date(escrito.fecha_despacho).toLocaleDateString('es-EC')} por {escrito.despachado_por}
+                            </p>
+                          )}
 
                           {/* Información del usuario creador */}
                           {escrito.usuario_creador && (
-                            <div className="mb-2 p-2 bg-blue-50 border border-blue-200 rounded text-xs">
-                              <p className="text-blue-800">
-                                <span className="font-medium">Creado por:</span> {escrito.usuario_creador.nombre} ({escrito.usuario_creador.rol}) |
-                                <span className="font-medium"> Email:</span> {escrito.usuario_creador.email}
-                              </p>
+                            <div className="mb-3 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                              <h5 className="text-sm font-medium text-blue-900 mb-2">Información del Creador</h5>
+                              <div className="grid grid-cols-1 md:grid-cols-2 gap-2 text-xs">
+                                <p className="text-blue-800">
+                                  <span className="font-medium">Nombre:</span> {escrito.usuario_creador.nombre}
+                                </p>
+                                <p className="text-blue-800">
+                                  <span className="font-medium">Rol:</span> {escrito.usuario_creador.rol}
+                                </p>
+                                <p className="text-blue-800">
+                                  <span className="font-medium">Email:</span> {escrito.usuario_creador.email}
+                                </p>
+                                <p className="text-blue-800">
+                                  <span className="font-medium">Tipo de Petitorio:</span> {escrito.tipo_petitorio}
+                                </p>
+                              </div>
                             </div>
                           )}
 
-                          <p className="text-xs text-gray-500">
-                            Escrito: {new Date(escrito.fecha_escrito).toLocaleDateString('es-EC')} |
-                            Despachado: {new Date(escrito.fecha_despacho).toLocaleDateString('es-EC')} por {escrito.despachado_por}
+                          <p className="text-sm text-gray-700 bg-gray-50 p-3 rounded-lg">
+                            {escrito.contenido}
                           </p>
                         </div>
 
                         <div className="ml-6 flex flex-col gap-2 min-w-0 flex-shrink-0">
                           <button
                             onClick={() => alert(`Escrito: ${escrito.titulo}\nContenido: ${escrito.contenido}`)}
-                            className="btn-secondary text-xs flex items-center gap-1 whitespace-nowrap"
+                            className="bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-3 rounded-lg transition-colors duration-200 text-xs flex items-center gap-1 whitespace-nowrap"
                           >
                             <Eye className="h-3 w-3" />
                             Ver Escrito
                           </button>
+
+                          {!escrito.despachado && (
+                            <>
+                              <button
+                                onClick={() => {
+                                  if (confirm(`¿Está seguro de que desea crear una providencia para el escrito "${escrito.titulo}"?\n\nProceso: ${escrito.numero_causa}\nFecha: ${new Date(escrito.fecha_escrito).toLocaleDateString('es-EC')}`)) {
+                                    handleCrearProvidencia(escrito)
+                                  }
+                                }}
+                                className="bg-green-600 hover:bg-green-700 text-white font-medium py-2 px-3 rounded-lg transition-colors duration-200 text-xs flex items-center gap-1 whitespace-nowrap"
+                              >
+                                <Plus className="h-3 w-3" />
+                                Crear Providencia
+                              </button>
+                              <button
+                                onClick={() => {
+                                  if (confirm(`¿Está seguro de que desea marcar como despachado el escrito "${escrito.titulo}"?\n\nProceso: ${escrito.numero_causa}\nEsta acción no se puede deshacer.`)) {
+                                    handleMarcarDespachado(escrito)
+                                  }
+                                }}
+                                className="bg-gray-600 hover:bg-gray-700 text-white font-medium py-2 px-3 rounded-lg transition-colors duration-200 text-xs flex items-center gap-1 whitespace-nowrap"
+                              >
+                                <CheckSquare className="h-3 w-3" />
+                                Marcar Despachado
+                              </button>
+                            </>
+                          )}
+
                           <button
                             onClick={() => window.open(`/proceso/${processes.find(p => p.numero_causa === escrito.numero_causa)?.id}`, '_blank')}
                             className="bg-purple-600 hover:bg-purple-700 text-white font-medium py-2 px-3 rounded-lg transition-colors duration-200 text-xs whitespace-nowrap"
@@ -546,10 +593,10 @@ export default function OperadoresPage() {
                         </div>
                       </div>
                     </div>
-                  ))}
-                </div>
+                  ))
+                )}
               </div>
-            )}
+            </div>
           </div>
         </div>
       </div>

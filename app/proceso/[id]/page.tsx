@@ -18,7 +18,8 @@ import {
   Paperclip,
   Clock,
   CheckCircle,
-  AlertCircle
+  AlertCircle,
+  Trash2
 } from 'lucide-react'
 import Sidebar from '@/components/Sidebar'
 import MobileHeader from '@/components/MobileHeader'
@@ -146,6 +147,43 @@ export default function ProcesoDetailPage() {
     } else {
       // Abrir archivo normal
       window.open(file.url, '_blank')
+    }
+  }
+
+  const handleDeleteActivity = async (actividadId: string) => {
+    if (!confirm('¿Está seguro de que desea eliminar esta actividad? Esta acción no se puede deshacer.')) {
+      return
+    }
+
+    try {
+      const response = await fetch('/api/activities/delete', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          actividadId,
+          userId: user?.id
+        }),
+      })
+
+      if (!response.ok) {
+        const data = await response.json()
+        throw new Error(data.error || 'Error al eliminar la actividad')
+      }
+
+      alert('Actividad eliminada exitosamente')
+
+      // Recargar el proceso
+      const refreshResponse = await fetch(`/api/processes/search?t=${Date.now()}`, { cache: 'no-store' })
+      if (!refreshResponse.ok) throw new Error('Error fetching processes')
+      const procesos = await refreshResponse.json()
+      const procesoEncontrado = procesos.find((p: any) => p.id === params.id)
+      setProceso(procesoEncontrado)
+
+    } catch (error: any) {
+      console.error('Error deleting activity:', error)
+      alert(error.message || 'Error al eliminar la actividad')
     }
   }
 
@@ -368,38 +406,50 @@ export default function ProcesoDetailPage() {
                               .sort((a: any, b: any) => new Date(b.fecha_creacion).getTime() - new Date(a.fecha_creacion).getTime())
                               .map((actividad: any) => (
                                 <div key={actividad.id} className="border border-gray-200 rounded-lg p-4">
-                                  <button
-                                    onClick={() => toggleActividad(actividad.id)}
-                                    className="w-full flex items-center justify-between text-left"
-                                  >
-                                    <div className="flex items-center gap-3">
-                                      {getTipoIcon(actividad.tipo)}
-                                      <div>
-                                        <h5 className="font-medium text-gray-900">
-                                          {actividad.tipo === 'escrito' ? 'Escrito' :
-                                            actividad.tipo === 'providencia' ? 'Providencia' :
-                                              actividad.tipo === 'razon' ? 'Razón' :
-                                                actividad.tipo === 'oficio' ? 'Oficio' :
-                                                  actividad.tipo === 'notificacion' ? 'Notificación' :
-                                                    actividad.tipo === 'tercero' ? 'Escrito de Tercero' :
-                                                      actividad.tipo}
-                                        </h5>
-                                        <p className="text-sm text-gray-600">
-                                          {new Date(actividad.fecha_creacion).toLocaleString('es-EC')}
-                                        </p>
+                                  <div className="flex items-start justify-between gap-4">
+                                    <button
+                                      onClick={() => toggleActividad(actividad.id)}
+                                      className="flex-1 flex items-center justify-between text-left"
+                                    >
+                                      <div className="flex items-center gap-3">
+                                        {getTipoIcon(actividad.tipo)}
+                                        <div>
+                                          <h5 className="font-medium text-gray-900">
+                                            {actividad.tipo === 'escrito' ? 'Escrito' :
+                                              actividad.tipo === 'providencia' ? 'Providencia' :
+                                                actividad.tipo === 'razon' ? 'Razón' :
+                                                  actividad.tipo === 'oficio' ? 'Oficio' :
+                                                    actividad.tipo === 'notificacion' ? 'Notificación' :
+                                                      actividad.tipo === 'tercero' ? 'Escrito de Tercero' :
+                                                        actividad.tipo}
+                                          </h5>
+                                          <p className="text-sm text-gray-600">
+                                            {new Date(actividad.fecha_creacion).toLocaleString('es-EC')}
+                                          </p>
+                                        </div>
                                       </div>
-                                    </div>
-                                    <div className="flex items-center gap-2">
-                                      <span className={`px-2 py-1 text-xs font-medium rounded-full ${getTipoColor(actividad.tipo)}`}>
-                                        {actividad.tipo}
-                                      </span>
-                                      {expandedActividades.includes(actividad.id) ? (
-                                        <ChevronDown className="h-4 w-4 text-gray-400" />
-                                      ) : (
-                                        <ChevronRight className="h-4 w-4 text-gray-400" />
-                                      )}
-                                    </div>
-                                  </button>
+                                      <div className="flex items-center gap-2">
+                                        <span className={`px-2 py-1 text-xs font-medium rounded-full ${getTipoColor(actividad.tipo)}`}>
+                                          {actividad.tipo}
+                                        </span>
+                                        {expandedActividades.includes(actividad.id) ? (
+                                          <ChevronDown className="h-4 w-4 text-gray-400" />
+                                        ) : (
+                                          <ChevronRight className="h-4 w-4 text-gray-400" />
+                                        )}
+                                      </div>
+                                    </button>
+
+                                    {user?.role === 'admin' && (
+                                      <button
+                                        onClick={() => handleDeleteActivity(actividad.id)}
+                                        className="p-2 text-red-500 hover:text-red-700 hover:bg-red-50 rounded-lg transition-colors flex-shrink-0"
+                                        title="Eliminar actividad"
+                                      >
+                                        <Trash2 className="h-4 w-4" />
+                                      </button>
+                                    )}
+                                  </div>
 
                                   {expandedActividades.includes(actividad.id) && (
                                     <div className="mt-4 pt-4 border-t border-gray-200">
@@ -504,66 +554,68 @@ export default function ProcesoDetailPage() {
               )}
             </div>
           </div>
-        </div>
-      </div>
+        </div >
+      </div >
 
       {/* Modal de Archivos */}
-      {showFilesModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full mx-4">
-            <div className="p-6">
-              <div className="flex items-center justify-between mb-6">
-                <h3 className="text-xl font-semibold text-gray-900">
-                  Archivos Adjuntos
-                </h3>
-                <button
-                  onClick={() => setShowFilesModal(false)}
-                  className="text-gray-400 hover:text-gray-600"
-                >
-                  <X className="h-6 w-6" />
-                </button>
-              </div>
+      {
+        showFilesModal && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+            <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full mx-4">
+              <div className="p-6">
+                <div className="flex items-center justify-between mb-6">
+                  <h3 className="text-xl font-semibold text-gray-900">
+                    Archivos Adjuntos
+                  </h3>
+                  <button
+                    onClick={() => setShowFilesModal(false)}
+                    className="text-gray-400 hover:text-gray-600"
+                  >
+                    <X className="h-6 w-6" />
+                  </button>
+                </div>
 
-              {selectedActivityFiles.length > 0 ? (
-                <div className="space-y-4">
-                  {selectedActivityFiles.map((file) => (
-                    <div key={file.id} className="flex items-center justify-between p-4 border border-gray-200 rounded-lg">
-                      <div className="flex items-center gap-3">
-                        <Paperclip className="h-5 w-5 text-gray-400" />
-                        <div>
-                          <p className="font-medium text-gray-900">{file.name}</p>
-                          <p className="text-sm text-gray-600">{file.size}</p>
+                {selectedActivityFiles.length > 0 ? (
+                  <div className="space-y-4">
+                    {selectedActivityFiles.map((file) => (
+                      <div key={file.id} className="flex items-center justify-between p-4 border border-gray-200 rounded-lg">
+                        <div className="flex items-center gap-3">
+                          <Paperclip className="h-5 w-5 text-gray-400" />
+                          <div>
+                            <p className="font-medium text-gray-900">{file.name}</p>
+                            <p className="text-sm text-gray-600">{file.size}</p>
+                          </div>
+                        </div>
+                        <div className="flex gap-2">
+                          <button
+                            onClick={() => handleViewFile(file)}
+                            className="bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-4 rounded-lg transition-colors duration-200 text-sm flex items-center gap-2"
+                          >
+                            <Eye className="h-4 w-4" />
+                            Ver
+                          </button>
+                          <button
+                            onClick={() => handleDownloadFile(file)}
+                            className="bg-green-600 hover:bg-green-700 text-white font-medium py-2 px-4 rounded-lg transition-colors duration-200 text-sm flex items-center gap-2"
+                          >
+                            <Download className="h-4 w-4" />
+                            Descargar
+                          </button>
                         </div>
                       </div>
-                      <div className="flex gap-2">
-                        <button
-                          onClick={() => handleViewFile(file)}
-                          className="bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-4 rounded-lg transition-colors duration-200 text-sm flex items-center gap-2"
-                        >
-                          <Eye className="h-4 w-4" />
-                          Ver
-                        </button>
-                        <button
-                          onClick={() => handleDownloadFile(file)}
-                          className="bg-green-600 hover:bg-green-700 text-white font-medium py-2 px-4 rounded-lg transition-colors duration-200 text-sm flex items-center gap-2"
-                        >
-                          <Download className="h-4 w-4" />
-                          Descargar
-                        </button>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <div className="text-center py-8 text-gray-500">
-                  <Paperclip className="h-12 w-12 mx-auto mb-4 text-gray-300" />
-                  <p>No hay archivos adjuntos</p>
-                </div>
-              )}
+                    ))}
+                  </div>
+                ) : (
+                  <div className="text-center py-8 text-gray-500">
+                    <Paperclip className="h-12 w-12 mx-auto mb-4 text-gray-300" />
+                    <p>No hay archivos adjuntos</p>
+                  </div>
+                )}
+              </div>
             </div>
           </div>
-        </div>
-      )}
-    </div>
+        )
+      }
+    </div >
   )
 }

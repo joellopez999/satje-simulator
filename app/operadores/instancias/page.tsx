@@ -17,7 +17,7 @@ import {
 } from 'lucide-react'
 import Sidebar from '@/components/Sidebar'
 import MobileHeader from '@/components/MobileHeader'
-import { getProcesses, createActivity, createExpediente } from '@/lib/storage'
+import { getProcesses } from '@/lib/storage'
 import { useUser } from '@/app/providers'
 
 export default function InstanciasPage() {
@@ -32,7 +32,11 @@ export default function InstanciasPage() {
 
   const [formData, setFormData] = useState({
     proceso_id: '',
-    expediente_id: ''
+    expediente_id: '',
+    tipo_instancia: '',
+    motivo: '',
+    fundamento_legal: '',
+    contenido: ''
   })
 
   const tiposSegundaInstancia = [
@@ -201,45 +205,45 @@ export default function InstanciasPage() {
       // Crear nuevo expediente para la instancia
       const numeroExpediente = selectedProcess.expedientes ? selectedProcess.expedientes.length + 1 : 1
 
-      const nuevoExpediente = await createExpediente({
-        proceso_id: selectedProcess.id,
-        numero_expediente: numeroExpediente,
-        instancia: instanciaText as 'segunda' | 'tercera',
-        estado: 'activo' as const
+      // 1. Crear el expediente de la nueva instancia
+      const expedienteData = {
+        proceso_id: formData.proceso_id,
+        numero_expediente: selectedInstance === 'segunda' ? 2 : 3,
+        instancia: selectedInstance,
+        estado: 'activo'
+      }
+
+      const expResponse = await fetch('/api/expedientes/create', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(expedienteData)
       })
 
-      if (!nuevoExpediente) throw new Error('Error al crear expediente')
+      if (!expResponse.ok) throw new Error('Error al crear expediente')
+      const newExpediente = await expResponse.json()
 
-      // Crear actividad de apertura
+      // 2. Crear la actividad de apertura (Razón)
       const actividadData = {
-        expediente_id: nuevoExpediente.id,
-        tipo: 'otros' as const,
-        titulo: `Apertura de ${selectedInstance === 'segunda' ? 'Segunda Instancia' : 'Tercera Instancia Extraordinaria'}`,
-        contenido: `Se apertura la ${selectedInstance === 'segunda' ? 'Segunda Instancia' : 'Tercera Instancia Extraordinaria'} para el proceso ${selectedProcess.numero_causa}`,
-        creado_por: user?.id || '',
+        expediente_id: newExpediente.id,
+        tipo: 'razon',
+        titulo: `Apertura de ${instanciaText}`,
+        contenido: `Se apertura la ${instanciaText} por motivo de: ${formData.motivo}\n\nFundamento Legal: ${formData.fundamento_legal}\n\n${formData.contenido}`,
+        creado_por: user?.id || 'Sistema',
+        fecha_creacion: new Date().toISOString(),
         metadata: {
-          es_apertura_instancia: true,
-          nivel_instancia: selectedInstance,
-          proceso_id: formData.proceso_id
+          tipo_instancia: selectedInstance,
+          motivo: formData.motivo
         }
       }
 
-      // Crear la actividad
-      // Crear la actividad usando API Route
-      const response = await fetch('/api/activities/create', {
+      const actResponse = await fetch('/api/activities/create', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(actividadData),
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(actividadData)
       })
 
-      if (!response.ok) {
-        const errorData = await response.json()
-        throw new Error(errorData.error || 'Error al crear actividad')
-      }
-
-      const newActivity = await response.json()
+      if (!actResponse.ok) throw new Error('Error al crear actividad')
+      const newActivity = await actResponse.json()
 
       console.log('Instancia creada:', newActivity)
       alert(`${selectedInstance === 'segunda' ? 'Segunda Instancia' : 'Tercera Instancia Extraordinaria'} aperturada exitosamente`)
@@ -248,7 +252,11 @@ export default function InstanciasPage() {
       setShowForm(false)
       setFormData({
         proceso_id: '',
-        expediente_id: ''
+        expediente_id: '',
+        tipo_instancia: '',
+        motivo: '',
+        fundamento_legal: '',
+        contenido: ''
       })
       setSelectedProcess(null)
       setSearchTerm('')

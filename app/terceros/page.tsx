@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { User, Save, X, Search, Scale, ArrowLeft, Home } from 'lucide-react'
+import { uploadFileToSupabase } from '@/lib/supabase-storage-utils'
 import { useUser } from '@/app/providers'
 
 export default function TercerosPage() {
@@ -120,20 +121,22 @@ export default function TercerosPage() {
       }
 
       // Procesar archivo si existe
-      let archivoBase64 = null
+      let archivoUrl = undefined
       if (terceroData.archivo) {
         try {
-          archivoBase64 = await new Promise<string>((resolve, reject) => {
-            const reader = new FileReader()
-            reader.onload = () => resolve(reader.result as string)
-            reader.onerror = reject
-            reader.readAsDataURL(terceroData.archivo!)
-          })
+          // Subir archivo a Supabase Storage
+          const uploadResult = await uploadFileToSupabase(
+            terceroData.archivo,
+            'satje-files',
+            `terceros/${Date.now()}_${terceroData.archivo.name}`
+          )
+
+          if (uploadResult) {
+            archivoUrl = uploadResult
+          }
         } catch (error) {
-          console.error('Error al procesar archivo:', error)
-          alert('Error al procesar el archivo. Intente nuevamente.')
-          setIsSubmitting(false)
-          return
+          console.error('Error al subir archivo:', error)
+          alert('Error al subir el archivo adjunto. Se creará el escrito sin archivo.')
         }
       }
 
@@ -144,7 +147,7 @@ export default function TercerosPage() {
         titulo: `Escrito de Tercero - ${terceroData.titulo}`,
         contenido: `Escrito presentado por ${terceroData.tipo_tercero}: ${terceroData.nombre_tercero}\n\n${terceroData.contenido}`,
         creado_por: user?.id || '',
-        archivo_url: archivoBase64 || undefined, // Guardar archivo como base64
+        archivo_url: archivoUrl, // Guardar URL de Supabase Storage
         metadata: {
           es_tercero: true,
           tipo_tercero: terceroData.tipo_tercero,

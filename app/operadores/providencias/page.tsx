@@ -368,31 +368,61 @@ export default function ProvidenciasPage() {
 
       // Si se solicita actividad a secretaría, crear la solicitud
       if (formData.solicitar_secretaria && formData.solicitud_secretaria) {
-        const solicitudSecretaria = {
-          id: `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-          providencia_id: newActivity.id,
-          proceso_id: formData.proceso_id,
+        const numeroCausa = formMode === 'indexada'
+          ? selectedWriting?.proceso?.numero_causa
+          : selectedProcessForAutonomous?.numero_causa || 'N/A';
+
+        const solicitudData = {
           expediente_id: formData.expediente_id,
-          numero_causa: selectedProcessForAutonomous?.numero_causa || 'N/A',
-          instrucciones: formData.solicitud_secretaria,
-          estado: 'pendiente',
-          fecha_solicitud: new Date().toISOString(),
-          solicitado_por: user?.name || 'Juez del Sistema',
-          solicitado_por_id: user?.id || 'juez-sistema',
-          titulo_providencia: formData.titulo
+          tipo: 'otros', // Usamos 'otros' para solicitudes internas
+          titulo: `SOLICITUD A SECRETARÍA: ${formData.titulo}`,
+          contenido: formData.solicitud_secretaria,
+          creado_por: user?.id || '',
+          fecha_creacion: new Date().toISOString(),
+          metadata: {
+            solicitud_secretaria: true,
+            providencia_id: newActivity.id,
+            titulo_providencia: formData.titulo,
+            proceso_id: formData.proceso_id,
+            numero_causa: numeroCausa,
+            instrucciones: formData.solicitud_secretaria,
+            estado: 'pendiente',
+            solicitado_por: user?.name || 'Juez del Sistema',
+            solicitado_por_id: user?.id || 'juez-sistema',
+            fecha_solicitud: new Date().toISOString()
+          }
         }
 
-        // Guardar solicitud en localStorage
-        const existingSolicitudes = JSON.parse(localStorage.getItem('satje_solicitudes_secretaria') || '[]')
-        existingSolicitudes.push(solicitudSecretaria)
-        localStorage.setItem('satje_solicitudes_secretaria', JSON.stringify(existingSolicitudes))
+        await fetch('/api/activities/create', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(solicitudData),
+        })
       }
 
-      // Si es providencia indexada, marcar el escrito como despachado
+      // Si es providencia indexada, marcar el escrito como despachado usando API Route
       if (formMode === 'indexada' && formData.escrito_vinculado) {
-        const success = await markWritingAsDispatched(formData.escrito_vinculado, user?.name || 'Usuario')
-        if (success) {
-          console.log('Escrito marcado como despachado automáticamente')
+        try {
+          const dispatchResponse = await fetch('/api/activities/dispatch', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              actividadId: formData.escrito_vinculado,
+              despachadoPor: user?.name || 'Usuario'
+            }),
+          })
+
+          if (dispatchResponse.ok) {
+            console.log('Escrito marcado como despachado automáticamente via API')
+          } else {
+            console.error('Error marking writing as dispatched via API')
+          }
+        } catch (error) {
+          console.error('Error calling dispatch API:', error)
         }
       }
 

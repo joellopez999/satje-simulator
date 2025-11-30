@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation'
 import { FileText, Search, Plus, Edit, Trash2 } from 'lucide-react'
 import Sidebar from '@/components/Sidebar'
 import MobileHeader from '@/components/MobileHeader'
-import { getProcesses, updateProcess, deleteProcess } from '@/lib/storage'
+import { getProcesses } from '@/lib/storage'
 
 export default function AdminProcesosPage() {
   const router = useRouter()
@@ -66,17 +66,23 @@ export default function AdminProcesosPage() {
     if (!editingProcess) return
 
     try {
-      const updatedProcess = await updateProcess(editingProcess.id, {
-        ...editForm,
-        estado: editForm.estado as 'activo' | 'acumulado' | 'archivado' | 'concluido',
-        fecha_actualizacion: new Date().toISOString()
+      const response = await fetch(`/api/processes/${editingProcess.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          ...editForm,
+          estado: editForm.estado as 'activo' | 'acumulado' | 'archivado' | 'concluido'
+        })
       })
 
-      if (updatedProcess) {
+      if (response.ok) {
+        const updatedProcess = await response.json()
         setProcesses(processes.map(p => p.id === updatedProcess.id ? updatedProcess : p))
         setShowEditModal(false)
         setEditingProcess(null)
         alert('Proceso actualizado exitosamente')
+      } else {
+        throw new Error('Error updating process')
       }
     } catch (error) {
       console.error('Error updating process:', error)
@@ -87,9 +93,16 @@ export default function AdminProcesosPage() {
   const handleDeleteProcess = async (processId: string) => {
     if (confirm('¿Está seguro de que desea eliminar este proceso? Esta acción no se puede deshacer.')) {
       try {
-        await deleteProcess(processId)
-        setProcesses(processes.filter(process => process.id !== processId))
-        alert('Proceso eliminado exitosamente')
+        const response = await fetch(`/api/processes/${processId}`, {
+          method: 'DELETE'
+        })
+
+        if (response.ok) {
+          setProcesses(processes.filter(process => process.id !== processId))
+          alert('Proceso eliminado exitosamente')
+        } else {
+          throw new Error('Error deleting process')
+        }
       } catch (error) {
         console.error('Error deleting process:', error)
         alert('Error al eliminar el proceso')
