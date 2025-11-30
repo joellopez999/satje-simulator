@@ -20,6 +20,7 @@ import {
 import Sidebar from '@/components/Sidebar'
 import MobileHeader from '@/components/MobileHeader'
 import { useUser } from '@/app/providers'
+import { logAuditAction } from '@/lib/audit'
 import { createActividad, uploadFileToSupabase, validateFile } from '@/lib/supabase-storage-utils'
 import { notifySolicitudCompletada } from '@/lib/telegram-notifications'
 
@@ -413,8 +414,8 @@ Esta acción no se puede deshacer.`)) {
                   <button
                     onClick={() => setFilter('todas')}
                     className={`px-3 py-2 rounded-lg font-medium transition-colors text-sm ${filter === 'todas'
-                        ? 'bg-primary-600 text-white'
-                        : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                      ? 'bg-primary-600 text-white'
+                      : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
                       }`}
                   >
                     Todas
@@ -422,8 +423,8 @@ Esta acción no se puede deshacer.`)) {
                   <button
                     onClick={() => setFilter('pendientes')}
                     className={`px-3 py-2 rounded-lg font-medium transition-colors text-sm ${filter === 'pendientes'
-                        ? 'bg-primary-600 text-white'
-                        : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                      ? 'bg-primary-600 text-white'
+                      : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
                       }`}
                   >
                     Pendientes
@@ -431,8 +432,8 @@ Esta acción no se puede deshacer.`)) {
                   <button
                     onClick={() => setFilter('completadas')}
                     className={`px-3 py-2 rounded-lg font-medium transition-colors text-sm ${filter === 'completadas'
-                        ? 'bg-primary-600 text-white'
-                        : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                      ? 'bg-primary-600 text-white'
+                      : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
                       }`}
                   >
                     Completadas
@@ -490,8 +491,8 @@ Esta acción no se puede deshacer.`)) {
                               {solicitud.titulo_providencia}
                             </h3>
                             <span className={`px-2 py-1 rounded-full text-xs font-medium ${solicitud.estado === 'pendiente'
-                                ? 'bg-orange-100 text-orange-800'
-                                : 'bg-green-100 text-green-800'
+                              ? 'bg-orange-100 text-orange-800'
+                              : 'bg-green-100 text-green-800'
                               }`}>
                               {solicitud.estado === 'pendiente' ? 'Pendiente' : 'Completada'}
                             </span>
@@ -672,8 +673,8 @@ Esta acción no se puede deshacer.`)) {
                               {solicitud.titulo_providencia}
                             </h3>
                             <span className={`px-2 py-1 rounded-full text-xs font-medium ${solicitud.estado === 'pendiente'
-                                ? 'bg-orange-100 text-orange-800'
-                                : 'bg-green-100 text-green-800'
+                              ? 'bg-orange-100 text-orange-800'
+                              : 'bg-green-100 text-green-800'
                               }`}>
                               {solicitud.estado === 'pendiente' ? 'Pendiente' : 'Completada'}
                             </span>

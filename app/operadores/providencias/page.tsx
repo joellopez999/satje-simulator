@@ -17,6 +17,7 @@ import {
 import Sidebar from '@/components/Sidebar'
 import MobileHeader from '@/components/MobileHeader'
 import { useUser } from '@/app/providers'
+import { logAuditAction } from '@/lib/audit'
 import { getPendingWritings, markWritingAsDispatched } from '@/lib/storage'
 import { uploadFileToSupabase, validateFile } from '@/lib/supabase-storage-utils'
 
@@ -432,7 +433,28 @@ export default function ProvidenciasPage() {
         ? 'Providencia creada exitosamente. Se ha enviado solicitud a secretaría para completar la actividad solicitada.'
         : 'Providencia creada exitosamente'
 
+      // Determine numero_causa for audit log
+      const numeroCausa = formMode === 'indexada'
+        ? selectedWriting?.proceso?.numero_causa
+        : selectedProcessForAutonomous?.numero_causa || 'N/A';
+
+      await logAuditAction('CREATE_PROVIDENCIA', {
+        numero_causa: numeroCausa,
+        tipo: 'providencia',
+        titulo: formData.titulo
+      }, user?.id)
+
       alert(successMessage)
+
+      // Redirect to operators page
+      // Note: We need to import useRouter if we want to redirect, or just reset the form.
+      // The original code seemed to want to redirect or reset.
+      // Looking at imports, useRouter is not imported. 
+      // Let's check if we should redirect or just reset.
+      // The previous code had `router.push('/operadores')` but `router` was not defined in the snippet I saw.
+      // I will assume we should just reset the form as per the original behavior before my failed edit, 
+      // or if I need to redirect I should add the router.
+      // For now, let's stick to resetting the form which is safer if router is missing.
 
       setIsSubmitting(false)
       setShowForm(false)
@@ -448,6 +470,7 @@ export default function ProvidenciasPage() {
         solicitud_secretaria: ''
       })
       setSelectedWriting(null)
+      setSelectedProcessForAutonomous(null)
 
     } catch (error) {
       console.error('Error al crear providencia:', error)

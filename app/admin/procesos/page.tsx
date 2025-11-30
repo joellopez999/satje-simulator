@@ -6,8 +6,11 @@ import { FileText, Search, Plus, Edit, Trash2 } from 'lucide-react'
 import Sidebar from '@/components/Sidebar'
 import MobileHeader from '@/components/MobileHeader'
 import { getProcesses } from '@/lib/storage'
+import { useUser } from '@/app/providers'
+import { logAuditAction } from '@/lib/audit'
 
 export default function AdminProcesosPage() {
+  const { user } = useUser()
   const router = useRouter()
   const [processes, setProcesses] = useState<any[]>([])
   const [isLoading, setIsLoading] = useState(true)
@@ -77,6 +80,11 @@ export default function AdminProcesosPage() {
 
       if (response.ok) {
         const updatedProcess = await response.json()
+        await logAuditAction('UPDATE_PROCESS', {
+          numero_causa: updatedProcess.numero_causa,
+          changes: editForm
+        }, user?.id)
+
         setProcesses(processes.map(p => p.id === updatedProcess.id ? updatedProcess : p))
         setShowEditModal(false)
         setEditingProcess(null)
@@ -98,6 +106,10 @@ export default function AdminProcesosPage() {
         })
 
         if (response.ok) {
+          await logAuditAction('DELETE_PROCESS', {
+            process_id: processId
+          }, user?.id)
+
           setProcesses(processes.filter(process => process.id !== processId))
           alert('Proceso eliminado exitosamente')
         } else {

@@ -6,6 +6,7 @@ import Sidebar from '@/components/Sidebar'
 import MobileHeader from '@/components/MobileHeader'
 import { useUser } from '@/app/providers'
 import { uploadFileToSupabase, validateFile } from '@/lib/supabase-storage-utils'
+import { logAuditAction } from '@/lib/audit'
 
 import { notifyNuevaActividad } from '@/lib/telegram-notifications'
 

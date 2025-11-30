@@ -6,6 +6,7 @@ import Sidebar from '@/components/Sidebar'
 import MobileHeader from '@/components/MobileHeader'
 import { markWritingAsDispatched } from '@/lib/storage'
 import { useUser } from '@/app/providers'
+import { logAuditAction } from '@/lib/audit'
 
 export default function OperadoresPage() {
   const { user } = useUser()

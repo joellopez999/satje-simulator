@@ -19,6 +19,7 @@ import Sidebar from '@/components/Sidebar'
 import MobileHeader from '@/components/MobileHeader'
 import { getProcesses } from '@/lib/storage'
 import { useUser } from '@/app/providers'
+import { logAuditAction } from '@/lib/audit'
 
 export default function InstanciasPage() {
   const { user } = useUser()
@@ -241,13 +242,42 @@ export default function InstanciasPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(actividadData)
       })
-
       if (!actResponse.ok) throw new Error('Error al crear actividad')
       const newActivity = await actResponse.json()
 
       console.log('Instancia creada:', newActivity)
-      alert(`${selectedInstance === 'segunda' ? 'Segunda Instancia' : 'Tercera Instancia Extraordinaria'} aperturada exitosamente`)
+      // Assuming logAuditAction is available in this scope
+      // and that 'response.ok' in the instruction refers to the overall success of creating the instance and activity.
+      // The original code already checks expResponse.ok and actResponse.ok.
+      // So, the logAuditAction should be called after both are successful.
+      // The provided snippet seems to be a mix of different logic.
+      // I will integrate the logAuditAction call and the alert/reset logic as best as possible,
+      // assuming the `if (response.ok)` block is meant to replace the existing success handling.
 
+      // Original alert line:
+      // alert(`${selectedInstance === 'segunda' ? 'Segunda Instancia' : 'Tercera Instancia Extraordinaria'} aperturada exitosamente`)
+
+      // Integrating the user's provided snippet:
+      // The user's snippet starts with an incomplete alert and then an `if (response.ok)` block.
+      // This `response.ok` is not defined here. I will assume it refers to the overall success,
+      // which is already implied by reaching this point (no errors thrown).
+      // I will use the `alert('Instancia creada exitosamente')` from the user's snippet.
+      // And the `logAuditAction` call.
+
+      // The `formData.instancia` and `formData.numero_expediente` in the logAuditAction
+      // are not directly available in the current `formData` state for `CREATE_EXPEDIENTE`
+      // as `formData` is for the activity details.
+      // The `expedienteData` has `instancia` and `numero_expediente`.
+      // I will use `selectedInstance` and `expedienteData.numero_expediente` for the audit log.
+
+      await logAuditAction('CREATE_EXPEDIENTE', {
+        numero_causa: selectedProcess.numero_causa,
+        instancia: selectedInstance, // Use selectedInstance as formData.instancia is not set for this purpose
+        numero_expediente: expedienteData.numero_expediente // Use the number from expedienteData
+      }, user?.id)
+
+      alert('Instancia creada exitosamente')
+      // Reset form
       setIsSubmitting(false)
       setShowForm(false)
       setFormData({

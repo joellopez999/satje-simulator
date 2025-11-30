@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import { User, Save, X, Search, Scale, ArrowLeft, Home } from 'lucide-react'
 import { uploadFileToSupabase } from '@/lib/supabase-storage-utils'
+import { logAuditAction } from '@/lib/audit'
 import { useUser } from '@/app/providers'
 
 export default function TercerosPage() {
