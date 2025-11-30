@@ -215,6 +215,14 @@ export default function EscritosPage() {
       const savedActivity = await response.json()
       console.log('Escrito guardado exitosamente:', savedActivity)
 
+      // Log audit action
+      await logAuditAction('SUBMIT_WRITING', {
+        numero_causa: selectedProcess.numero_causa,
+        tipo: escritoData.tipo_petitorio, // Use dynamic type (Escrito, Oficio, Anexos)
+        titulo: escritoData.titulo,
+        archivo: archivoUrl ? 'Sí' : 'No'
+      }, user?.id)
+
       // Actualizar el estado local para reflejar la nueva actividad inmediatamente
       if (selectedExpediente && selectedProcess) {
         // 1. Actualizar el expediente seleccionado

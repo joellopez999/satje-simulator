@@ -7,6 +7,7 @@ import MobileHeader from '@/components/MobileHeader'
 import { getProcesses, saveProcess } from '@/lib/storage'
 import { notifyNuevoProceso } from '@/lib/telegram-notifications'
 import { useUser } from '@/app/providers'
+import { logAuditAction } from '@/lib/audit'
 
 export default function CrearCausaPage() {
   const { user } = useUser()
@@ -141,6 +142,15 @@ export default function CrearCausaPage() {
 
       const data = await response.json()
       console.log('Proceso creado:', data)
+
+      await logAuditAction('CREATE_PROCESS', {
+        numero_causa: numeroCausa,
+        actor: formData.actor,
+        demandado: formData.demandado,
+        materia: formData.materia,
+        asunto: formData.asunto
+      }, user?.id)
+
       alert(`Causa creada exitosamente con número: ${numeroCausa}`)
 
       // Enviar notificación de Telegram al juez

@@ -181,6 +181,14 @@ export default function TercerosPage() {
 
       const newActivity = await response.json()
 
+      await logAuditAction('SUBMIT_WRITING_TERCERO', {
+        numero_causa: selectedProcess.numero_causa,
+        tipo: 'escrito_tercero',
+        titulo: terceroData.titulo,
+        nombre_tercero: terceroData.nombre_tercero,
+        tipo_tercero: terceroData.tipo_tercero
+      }, user?.id)
+
       console.log('Escrito de tercero creado:', newActivity)
       alert(`Escrito de tercero ingresado exitosamente en el proceso ${selectedProcess.numero_causa}`)
 

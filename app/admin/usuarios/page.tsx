@@ -13,6 +13,7 @@ import {
   updateUserPassword,
   getUserPasswords
 } from '@/lib/password-utils'
+import { logAuditAction } from '@/lib/audit'
 
 interface User {
   id: string
@@ -109,6 +110,12 @@ export default function UsuariosPage() {
       // Reload users
       await loadUsers()
 
+      await logAuditAction('CREATE_USER', {
+        name: formData.name,
+        email: formData.email,
+        role: formData.role
+      }, user?.id)
+
       // Limpiar formulario
       setFormData({ name: '', email: '', role: 'abogado', password: '' })
       setShowCreateModal(false)
@@ -165,6 +172,13 @@ export default function UsuariosPage() {
       // Reload users
       await loadUsers()
 
+      await logAuditAction('UPDATE_USER', {
+        user_id: editingUser.id,
+        name: formData.name,
+        email: formData.email,
+        role: formData.role
+      }, user?.id)
+
       setShowEditModal(false)
       setEditingUser(null)
       setFormData({ name: '', email: '', role: 'abogado', password: '' })
@@ -213,6 +227,12 @@ export default function UsuariosPage() {
 
         // Reload users
         await loadUsers()
+
+        await logAuditAction('DELETE_USER', {
+          user_id: userId,
+          user_name: userToDelete.name
+        }, user?.id)
+
         alert('Usuario eliminado exitosamente')
       } catch (error) {
         console.error('Error deleting user:', error)
@@ -257,6 +277,12 @@ export default function UsuariosPage() {
       await loadUsers()
 
       const action = userToToggle.is_active ? 'desactivado' : 'activado'
+
+      await logAuditAction('TOGGLE_USER_STATUS', {
+        user_id: userId,
+        new_status: !userToToggle.is_active ? 'active' : 'inactive'
+      }, user?.id)
+
       alert(`Usuario ${action} exitosamente`)
     } catch (error) {
       console.error('Error toggling status:', error)
@@ -336,6 +362,12 @@ export default function UsuariosPage() {
       }
 
       setShowPasswordModal(false)
+
+      await logAuditAction('CHANGE_USER_PASSWORD', {
+        target_user_id: selectedUser.id,
+        is_temporary: passwordData.isTemporary
+      }, user?.id)
+
       setSelectedUser(null)
       setPasswordData({
         currentPassword: '',
