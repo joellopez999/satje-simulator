@@ -27,9 +27,44 @@ export default function EscritosPage() {
     archivo: null as File | null
   })
 
+  // Recent processes state
+  const [recentProcesses, setRecentProcesses] = useState<any[]>([])
+  const [isLoadingRecent, setIsLoadingRecent] = useState(true)
+  const [currentPage, setCurrentPage] = useState(1)
+  const ITEMS_PER_PAGE = 10
+
+  useEffect(() => {
+    loadRecentProcesses()
+  }, [currentPage])
+
+  const loadRecentProcesses = async () => {
+    setIsLoadingRecent(true)
+    try {
+      const params = new URLSearchParams()
+      params.append('limit', ITEMS_PER_PAGE.toString())
+      params.append('offset', ((currentPage - 1) * ITEMS_PER_PAGE).toString())
+
+      const response = await fetch(`/api/processes/search?${params.toString()}`)
+      if (response.ok) {
+        const data = await response.json()
+        setRecentProcesses(data)
+      }
+    } catch (error) {
+      console.error('Error loading recent processes:', error)
+    } finally {
+      setIsLoadingRecent(false)
+    }
+  }
+
   // Búsqueda en tiempo real usando API Route - todos los abogados pueden ver todas las causas
   useEffect(() => {
     const performSearch = async () => {
+      // Avoid searching if the term matches the selected process (prevents dropdown from re-opening on select)
+      if (selectedProcess && searchTerm === selectedProcess.numero_causa) {
+        setSearchResults([])
+        return
+      }
+
       if (searchTerm.length >= 3) {
         try {
           const params = new URLSearchParams()
@@ -49,7 +84,7 @@ export default function EscritosPage() {
       }
     }
     performSearch()
-  }, [searchTerm])
+  }, [searchTerm, selectedProcess])
 
   // Cerrar dropdown al hacer clic fuera o presionar Escape
   useEffect(() => {
@@ -265,6 +300,9 @@ export default function EscritosPage() {
       setShowCreateForm(false)
       setEscritoData({ titulo: '', tipo_petitorio: '', contenido: '', calidad: '', archivo: null })
 
+      // Refresh recent writings - No longer needed as we show processes
+      // loadRecentWritings()
+
     } catch (error) {
       console.error('Error al guardar escrito:', error)
       alert('Error al guardar el escrito')
@@ -339,7 +377,20 @@ export default function EscritosPage() {
               {/* Proceso Seleccionado */}
               {selectedProcess && (
                 <div className="mt-4 p-4 bg-green-50 border border-green-200 rounded-lg">
-                  <h3 className="font-medium text-green-900 mb-2">Proceso Seleccionado</h3>
+                  <div className="flex justify-between items-start mb-2">
+                    <h3 className="font-medium text-green-900">Proceso Seleccionado</h3>
+                    <button
+                      onClick={() => {
+                        setSelectedProcess(null)
+                        setSelectedExpediente(null)
+                        setSearchTerm('')
+                      }}
+                      className="text-green-700 hover:text-green-900 p-1 rounded-full hover:bg-green-100 transition-colors"
+                      title="Cerrar selección"
+                    >
+                      <X className="h-5 w-5" />
+                    </button>
+                  </div>
                   <div className="grid grid-cols-2 gap-4 text-sm mb-4">
                     <div>
                       <span className="font-medium text-green-800">Número:</span>
@@ -639,6 +690,123 @@ export default function EscritosPage() {
                     </button>
                   </div>
                 </form>
+              </div>
+            )}
+
+            {/* Recent Processes Table */}
+            {!selectedProcess && !showCreateForm && (
+              <div className="mt-8 bg-white rounded-lg shadow-sm border border-judicial-200 overflow-hidden">
+                <div className="p-6 border-b border-judicial-200">
+                  <h3 className="text-lg font-semibold text-judicial-900">
+                    Seleccionar de Procesos Recientes
+                  </h3>
+                </div>
+
+                <div className="overflow-x-auto">
+                  <table className="min-w-full divide-y divide-judicial-200">
+                    <thead className="bg-judicial-50">
+                      <tr>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-judicial-500 uppercase tracking-wider">Número Causa</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-judicial-500 uppercase tracking-wider">Actor / Demandado</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-judicial-500 uppercase tracking-wider">Materia</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-judicial-500 uppercase tracking-wider">Asunto</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-judicial-500 uppercase tracking-wider">Fecha</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-judicial-500 uppercase tracking-wider">Acción</th>
+                      </tr>
+                    </thead>
+                    <tbody className="bg-white divide-y divide-judicial-200">
+                      {isLoadingRecent ? (
+                        <tr>
+                          <td colSpan={6} className="px-6 py-4 text-center">
+                            <div className="flex justify-center">
+                              <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary-600"></div>
+                            </div>
+                          </td>
+                        </tr>
+                      ) : recentProcesses.length > 0 ? (
+                        recentProcesses.map((process) => (
+                          <tr key={process.id} className="hover:bg-judicial-50">
+                            <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-judicial-900">
+                              {process.numero_causa}
+                            </td>
+                            <td className="px-6 py-4 text-sm text-judicial-500">
+                              <div className="font-medium text-judicial-900">{process.actor}</div>
+                              <div className="text-xs">vs. {process.demandado}</div>
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap text-sm text-judicial-500">
+                              {process.materia}
+                            </td>
+                            <td className="px-6 py-4 text-sm text-judicial-500">
+                              {process.asunto}
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap text-sm text-judicial-500">
+                              {new Date(process.fecha_creacion).toLocaleDateString('es-EC')}
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                              <button
+                                onClick={() => handleProcessSelect(process)}
+                                className="text-primary-600 hover:text-primary-900 font-medium"
+                              >
+                                Seleccionar
+                              </button>
+                            </td>
+                          </tr>
+                        ))
+                      ) : (
+                        <tr>
+                          <td colSpan={6} className="px-6 py-4 text-center text-sm text-judicial-500">
+                            No hay procesos recientes
+                          </td>
+                        </tr>
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+
+                {/* Pagination */}
+                <div className="bg-judicial-50 px-4 py-3 border-t border-judicial-200 flex items-center justify-between sm:px-6">
+                  <div className="flex-1 flex justify-between sm:hidden">
+                    <button
+                      onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                      disabled={currentPage === 1}
+                      className="relative inline-flex items-center px-4 py-2 border border-judicial-300 text-sm font-medium rounded-md text-judicial-700 bg-white hover:bg-judicial-50 disabled:opacity-50"
+                    >
+                      Anterior
+                    </button>
+                    <button
+                      onClick={() => setCurrentPage(p => p + 1)}
+                      disabled={recentProcesses.length < ITEMS_PER_PAGE}
+                      className="ml-3 relative inline-flex items-center px-4 py-2 border border-judicial-300 text-sm font-medium rounded-md text-judicial-700 bg-white hover:bg-judicial-50 disabled:opacity-50"
+                    >
+                      Siguiente
+                    </button>
+                  </div>
+                  <div className="hidden sm:flex-1 sm:flex sm:items-center sm:justify-between">
+                    <div>
+                      <p className="text-sm text-judicial-700">
+                        Página <span className="font-medium">{currentPage}</span>
+                      </p>
+                    </div>
+                    <div>
+                      <nav className="relative z-0 inline-flex rounded-md shadow-sm -space-x-px" aria-label="Pagination">
+                        <button
+                          onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                          disabled={currentPage === 1}
+                          className="relative inline-flex items-center px-2 py-2 rounded-l-md border border-judicial-300 bg-white text-sm font-medium text-judicial-500 hover:bg-judicial-50 disabled:opacity-50"
+                        >
+                          Anterior
+                        </button>
+                        <button
+                          onClick={() => setCurrentPage(p => p + 1)}
+                          disabled={recentProcesses.length < ITEMS_PER_PAGE}
+                          className="relative inline-flex items-center px-2 py-2 rounded-r-md border border-judicial-300 bg-white text-sm font-medium text-judicial-500 hover:bg-judicial-50 disabled:opacity-50"
+                        >
+                          Siguiente
+                        </button>
+                      </nav>
+                    </div>
+                  </div>
+                </div>
               </div>
             )}
           </div>

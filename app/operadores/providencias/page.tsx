@@ -72,21 +72,8 @@ export default function ProvidenciasPage() {
     'Otros'
   ]
 
-  useEffect(() => {
-    const searchWritings = async () => {
-      if (searchTerm.length >= 3) {
-        const writings = await getPendingWritings()
-        const results = writings.filter(writing =>
-          writing.titulo.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          writing.proceso.numero_causa.toLowerCase().includes(searchTerm.toLowerCase())
-        )
-        setSearchResults(results)
-      } else {
-        setSearchResults([])
-      }
-    }
-    searchWritings()
-  }, [searchTerm])
+
+  // ... (process search effect remains)
 
   // Búsqueda de procesos para providencias autónomas usando API Route
   useEffect(() => {
@@ -179,9 +166,16 @@ export default function ProvidenciasPage() {
     }
   }, [searchParams])
 
+  const [selectedProcessForIndexada, setSelectedProcessForIndexada] = useState<any>(null)
+  const [processWritings, setProcessWritings] = useState<any[]>([])
+
   const handleModeChange = (mode: 'indexada' | 'autonoma') => {
     setFormMode(mode)
     setSelectedWriting(null)
+    setSelectedProcessForIndexada(null)
+    setSelectedProcessForAutonomous(null)
+    setProcessWritings([])
+    setProcessSearchTerm('')
     setFormData({
       titulo: '',
       contenido: '',
@@ -241,33 +235,51 @@ export default function ProvidenciasPage() {
     }))
     setSearchResults([])
     setSearchTerm('')
+    setShowForm(true) // Automatically show form when writing is selected
   }
 
-  const handleProcessSelect = (process: any) => {
-    setSelectedProcessForAutonomous(process)
+  const handleProcessSelect = async (process: any) => {
     setProcessSearchTerm(process.numero_causa)
     setProcessSearchResults([]) // Close dropdown
-    setSelectedExpedienteForAutonomous(null) // Reset expediente when process changes
-    setSelectedInstance('') // Reset instance selection
 
-    // Generar título con fecha y hora actual
-    const now = new Date()
-    const fechaHora = now.toLocaleString('es-EC', {
-      year: 'numeric',
-      month: '2-digit',
-      day: '2-digit',
-      hour: '2-digit',
-      minute: '2-digit',
-      second: '2-digit'
-    })
+    if (formMode === 'autonoma') {
+      setSelectedProcessForAutonomous(process)
+      setSelectedExpedienteForAutonomous(null) // Reset expediente when process changes
+      setSelectedInstance('') // Reset instance selection
 
-    // Actualizar formData con el proceso seleccionado
-    setFormData(prev => ({
-      ...prev,
-      proceso_id: process.id,
-      expediente_id: process.expedientes?.[0]?.id || '',
-      titulo: `Providencia de oficio - ${process.numero_causa} - ${fechaHora}`
-    }))
+      // Generar título con fecha y hora actual
+      const now = new Date()
+      const fechaHora = now.toLocaleString('es-EC', {
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit'
+      })
+
+      // Actualizar formData con el proceso seleccionado
+      setFormData(prev => ({
+        ...prev,
+        proceso_id: process.id,
+        expediente_id: process.expedientes?.[0]?.id || '',
+        titulo: `Providencia de oficio - ${process.numero_causa} - ${fechaHora}`
+      }))
+      setShowForm(true) // Automatically show form when process is selected
+    } else {
+      // Modo Indexada
+      setSelectedProcessForIndexada(process)
+
+      // Cargar escritos pendientes para este proceso
+      try {
+        const writings = await getPendingWritings()
+        const filteredWritings = writings.filter(w => w.proceso.id === process.id)
+        setProcessWritings(filteredWritings)
+      } catch (error) {
+        console.error('Error loading writings for process:', error)
+        setProcessWritings([])
+      }
+    }
   }
 
   const handleInstanceChange = (instanceId: string) => {
@@ -542,82 +554,16 @@ export default function ProvidenciasPage() {
               </div>
             </div>
 
-            {/* Búsqueda de Escrito (solo para indexadas) */}
-            {formMode === 'indexada' && (
-              <div className="card mb-6">
-                <h2 className="text-lg font-semibold text-judicial-900 mb-4">
-                  Seleccionar Escrito
-                </h2>
-                <div className="relative">
-                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-judicial-400" />
-                  <input
-                    type="text"
-                    placeholder="Buscar escrito por título o número de causa..."
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                    className="input-field pl-10 w-full"
-                  />
-
-                  {searchResults.length > 0 && (
-                    <div className="absolute z-10 w-full mt-1 bg-white border border-judicial-200 rounded-lg shadow-lg max-h-60 overflow-y-auto">
-                      {searchResults.map((writing) => (
-                        <div
-                          key={writing.id}
-                          onClick={() => handleWritingSelect(writing)}
-                          className="p-3 hover:bg-judicial-50 cursor-pointer border-b border-judicial-100 last:border-b-0"
-                        >
-                          <div className="font-medium text-judicial-900">{writing.titulo}</div>
-                          <div className="text-sm text-judicial-600">
-                            {writing.proceso.numero_causa} • {writing.creado_por}
-                          </div>
-                          <div className="text-xs text-judicial-500">
-                            {new Date(writing.fecha_creacion).toLocaleDateString('es-EC')}
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              </div>
-            )}
-
-            {/* Información del Escrito Seleccionado */}
-            {formMode === 'indexada' && selectedWriting && (
-              <div className="card mb-6">
-                <h3 className="font-semibold text-judicial-900 mb-3">Escrito Seleccionado</h3>
-                <div className="bg-green-50 border border-green-200 rounded-lg p-4">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                      <span className="font-medium text-green-800">Título:</span>
-                      <p className="text-green-700">{selectedWriting.titulo}</p>
-                    </div>
-                    <div>
-                      <span className="font-medium text-green-800">Proceso:</span>
-                      <p className="text-green-700">{selectedWriting.proceso.numero_causa}</p>
-                    </div>
-                    <div>
-                      <span className="font-medium text-green-800">Creado por:</span>
-                      <p className="text-green-700">{selectedWriting.creado_por}</p>
-                    </div>
-                    <div>
-                      <span className="font-medium text-green-800">Fecha:</span>
-                      <p className="text-green-700">
-                        {new Date(selectedWriting.fecha_creacion).toLocaleString('es-EC')}
-                      </p>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {/* Búsqueda de Proceso (solo para autónomas) */}
-            {formMode === 'autonoma' && (
+            {/* Búsqueda de Proceso (Común para ambos modos) */}
+            {(!selectedWriting && !selectedProcessForAutonomous) && (
               <div className="card mb-6">
                 <h2 className="text-lg font-semibold text-judicial-900 mb-4">
                   Seleccionar Proceso
                 </h2>
                 <p className="text-judicial-600 mb-4">
-                  Para providencias autónomas, primero debe seleccionar el proceso donde se registrará
+                  {formMode === 'indexada'
+                    ? 'Busque el proceso para ver los escritos pendientes'
+                    : 'Busque el proceso donde se registrará la providencia autónoma'}
                 </p>
                 <div className="relative search-dropdown">
                   <input
@@ -626,7 +572,6 @@ export default function ProvidenciasPage() {
                     value={processSearchTerm}
                     onChange={(e) => setProcessSearchTerm(e.target.value)}
                     className="input-field w-full"
-                    required
                   />
                   {processSearchResults.length > 0 && (
                     <div className="absolute z-10 w-full mt-1 bg-white border border-judicial-200 rounded-lg shadow-lg max-h-60 overflow-y-auto">
@@ -649,34 +594,108 @@ export default function ProvidenciasPage() {
                     </div>
                   )}
                 </div>
+              </div>
+            )}
 
-                {selectedProcessForAutonomous && (
-                  <div className="mt-4 p-3 bg-green-50 border border-green-200 rounded-lg">
-                    <h4 className="font-medium text-green-900 mb-2">Proceso Seleccionado</h4>
-                    <div className="grid grid-cols-2 gap-4 text-sm">
-                      <div>
-                        <span className="font-medium text-green-800">Número:</span>
-                        <p className="text-green-700">{selectedProcessForAutonomous.numero_causa}</p>
+            {/* Lista de Escritos Pendientes (Solo Indexada) */}
+            {formMode === 'indexada' && selectedProcessForIndexada && !selectedWriting && (
+              <div className="card mb-6">
+                <div className="flex justify-between items-center mb-4">
+                  <h2 className="text-lg font-semibold text-judicial-900">
+                    Escritos Pendientes del Proceso
+                  </h2>
+                  <button
+                    onClick={() => {
+                      setSelectedProcessForIndexada(null)
+                      setProcessSearchTerm('')
+                    }}
+                    className="text-sm text-primary-600 hover:text-primary-800"
+                  >
+                    Cambiar Proceso
+                  </button>
+                </div>
+
+                <div className="bg-judicial-50 p-4 rounded-lg mb-4">
+                  <p className="font-medium text-judicial-900">{selectedProcessForIndexada.numero_causa}</p>
+                  <p className="text-sm text-judicial-600">{selectedProcessForIndexada.actor} vs {selectedProcessForIndexada.demandado}</p>
+                </div>
+
+                {processWritings.length > 0 ? (
+                  <div className="space-y-3">
+                    {processWritings.map((writing) => (
+                      <div
+                        key={writing.id}
+                        onClick={() => handleWritingSelect(writing)}
+                        className="p-4 bg-white border border-judicial-200 rounded-lg hover:border-primary-500 cursor-pointer transition-colors shadow-sm"
+                      >
+                        <div className="flex justify-between items-start">
+                          <div>
+                            <h4 className="font-medium text-judicial-900">{writing.titulo}</h4>
+                            <p className="text-sm text-judicial-600 mt-1">
+                              Creado por: {writing.creado_por}
+                            </p>
+                            <p className="text-xs text-judicial-500 mt-1">
+                              Fecha: {new Date(writing.fecha_creacion).toLocaleString('es-EC')}
+                            </p>
+                          </div>
+                          <div className="bg-primary-50 text-primary-700 px-3 py-1 rounded-full text-xs font-medium">
+                            Pendiente
+                          </div>
+                        </div>
                       </div>
-                      <div>
-                        <span className="font-medium text-green-800">Materia:</span>
-                        <p className="text-green-700">{selectedProcessForAutonomous.materia}</p>
-                      </div>
-                      <div>
-                        <span className="font-medium text-green-800">Actor:</span>
-                        <p className="text-green-700">{selectedProcessForAutonomous.actor}</p>
-                      </div>
-                      <div>
-                        <span className="font-medium text-green-800">Demandado:</span>
-                        <p className="text-green-700">{selectedProcessForAutonomous.demandado}</p>
-                      </div>
-                      <div className="col-span-2">
-                        <span className="font-medium text-green-800">Asunto:</span>
-                        <p className="text-green-700">{selectedProcessForAutonomous.asunto}</p>
-                      </div>
-                    </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="text-center py-8 bg-white border border-judicial-200 rounded-lg border-dashed">
+                    <FileText className="h-10 w-10 text-judicial-300 mx-auto mb-3" />
+                    <p className="text-judicial-500">No hay escritos pendientes para este proceso</p>
                   </div>
                 )}
+              </div>
+            )}
+
+            {/* Proceso Seleccionado (Solo Autónoma) */}
+            {formMode === 'autonoma' && selectedProcessForAutonomous && (
+              <div className="card mb-6">
+                <div className="flex justify-between items-start mb-4">
+                  <h2 className="text-lg font-semibold text-judicial-900">
+                    Proceso Seleccionado
+                  </h2>
+                  <button
+                    onClick={() => {
+                      setSelectedProcessForAutonomous(null)
+                      setProcessSearchTerm('')
+                    }}
+                    className="text-sm text-primary-600 hover:text-primary-800"
+                  >
+                    Cambiar Proceso
+                  </button>
+                </div>
+
+                <div className="p-3 bg-green-50 border border-green-200 rounded-lg">
+                  <div className="grid grid-cols-2 gap-4 text-sm">
+                    <div>
+                      <span className="font-medium text-green-800">Número:</span>
+                      <p className="text-green-700">{selectedProcessForAutonomous.numero_causa}</p>
+                    </div>
+                    <div>
+                      <span className="font-medium text-green-800">Materia:</span>
+                      <p className="text-green-700">{selectedProcessForAutonomous.materia}</p>
+                    </div>
+                    <div>
+                      <span className="font-medium text-green-800">Actor:</span>
+                      <p className="text-green-700">{selectedProcessForAutonomous.actor}</p>
+                    </div>
+                    <div>
+                      <span className="font-medium text-green-800">Demandado:</span>
+                      <p className="text-green-700">{selectedProcessForAutonomous.demandado}</p>
+                    </div>
+                    <div className="col-span-2">
+                      <span className="font-medium text-green-800">Asunto:</span>
+                      <p className="text-green-700">{selectedProcessForAutonomous.asunto}</p>
+                    </div>
+                  </div>
+                </div>
               </div>
             )}
 

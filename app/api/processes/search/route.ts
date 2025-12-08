@@ -10,8 +10,10 @@ export async function GET(request: NextRequest) {
         const materia = searchParams.get('materia')
         const estado = searchParams.get('estado')
         const juez_id = searchParams.get('juez_id')
+        const limit = parseInt(searchParams.get('limit') || '50')
+        const offset = parseInt(searchParams.get('offset') || '0')
 
-        console.log('API Search Params:', { numero_causa, materia, estado, juez_id })
+        console.log('API Search Params:', { numero_causa, materia, estado, juez_id, limit, offset })
 
         let query = supabaseAdmin
             .from('procesos')
@@ -39,7 +41,9 @@ export async function GET(request: NextRequest) {
             query = query.eq('juez_id', juez_id)
         }
 
-        const { data, error } = await query.order('fecha_creacion', { ascending: false })
+        const { data, error } = await query
+            .order('fecha_creacion', { ascending: false })
+            .range(offset, offset + limit - 1)
 
         if (error) {
             console.error('Error searching processes:', error)

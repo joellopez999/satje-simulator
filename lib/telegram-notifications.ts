@@ -30,7 +30,7 @@ export const sendTelegramNotification = async (
 ): Promise<{ success: boolean; error?: string }> => {
   try {
     const finalConfig = { ...defaultConfig, ...config }
-    
+
     // Si hay webhook de N8N, usar ese método
     if (finalConfig.n8nWebhookUrl) {
       const response = await fetch(finalConfig.n8nWebhookUrl, {
@@ -54,7 +54,7 @@ export const sendTelegramNotification = async (
 
     // Método directo con Telegram API
     const telegramMessage = formatTelegramMessage(notification)
-    
+
     const response = await fetch(`https://api.telegram.org/bot${finalConfig.botToken}/sendMessage`, {
       method: 'POST',
       headers: {
@@ -76,9 +76,9 @@ export const sendTelegramNotification = async (
     return { success: true }
   } catch (error) {
     console.error('Error sending Telegram notification:', error)
-    return { 
-      success: false, 
-      error: error instanceof Error ? error.message : 'Error desconocido' 
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Error desconocido'
     }
   }
 }
@@ -87,20 +87,20 @@ export const sendTelegramNotification = async (
 const formatTelegramMessage = (notification: TelegramNotification): string => {
   const emoji = getEmojiForType(notification.type)
   const timestamp = new Date(notification.fecha).toLocaleString('es-EC')
-  
+
   let message = `${emoji} <b>${notification.titulo}</b>\n\n`
   message += `${notification.descripcion}\n\n`
   message += `👤 <b>Usuario:</b> ${notification.usuario}\n`
   message += `📅 <b>Fecha:</b> ${timestamp}\n`
-  
+
   if (notification.proceso_id) {
     message += `📋 <b>Proceso:</b> ${notification.proceso_id}\n`
   }
-  
+
   if (notification.url) {
     message += `🔗 <a href="${notification.url}">Ver detalles</a>\n`
   }
-  
+
   return message
 }
 
@@ -148,14 +148,16 @@ export const notifySolicitudCompletada = async (
     titulo: string
     usuario: string
     proceso_id: string
+    numero_causa?: string
   },
   config?: Partial<TelegramConfig>
 ) => {
+  const procesoInfo = solicitud.numero_causa ? ` - Proceso: ${solicitud.numero_causa}` : ''
   return sendTelegramNotification({
     type: 'solicitud_completada',
     titulo: 'Solicitud Completada',
-    descripcion: `Se ha completado la solicitud: "${solicitud.titulo}"`,
-    proceso_id: solicitud.proceso_id,
+    descripcion: `Se ha completado la solicitud: "${solicitud.titulo}"${procesoInfo}`,
+    proceso_id: solicitud.numero_causa || solicitud.proceso_id, // Use numero_causa if available for display
     usuario: solicitud.usuario,
     fecha: new Date().toISOString(),
     url: `${process.env.NEXT_PUBLIC_APP_URL}/proceso/${solicitud.proceso_id}`

@@ -94,6 +94,40 @@ export default function ConfiguracionPage() {
   const [auditFilterUser, setAuditFilterUser] = useState('all')
   const [auditFilterAction, setAuditFilterAction] = useState('all')
   const [isLoadingLogs, setIsLoadingLogs] = useState(false)
+  const [usersList, setUsersList] = useState<any[]>([])
+
+  const AUDIT_ACTIONS = [
+    { value: 'LOGIN', label: 'Inicio de Sesión' },
+    { value: 'LOGOUT', label: 'Cierre de Sesión' },
+    { value: 'UPDATE_CONFIG', label: 'Actualizar Configuración' },
+    { value: 'RESET_CONFIG', label: 'Restablecer Configuración' },
+    { value: 'CREATE_USER', label: 'Crear Usuario' },
+    { value: 'UPDATE_USER', label: 'Actualizar Usuario' },
+    { value: 'DELETE_USER', label: 'Eliminar Usuario' },
+    { value: 'TOGGLE_USER_STATUS', label: 'Cambiar Estado Usuario' },
+    { value: 'CHANGE_USER_PASSWORD', label: 'Cambiar Contraseña' },
+    { value: 'CREATE_PROCESS', label: 'Crear Proceso' },
+    { value: 'UPDATE_PROCESS', label: 'Actualizar Proceso' },
+    { value: 'DELETE_PROCESS', label: 'Eliminar Proceso' },
+    { value: 'SUBMIT_WRITING', label: 'Ingresar Escrito' },
+    { value: 'SUBMIT_WRITING_TERCERO', label: 'Ingresar Escrito (Tercero)' },
+    { value: 'DISPATCH_WRITING', label: 'Despachar Escrito' },
+    { value: 'CREATE_PROVIDENCIA', label: 'Crear Providencia' },
+    { value: 'SECRETARY_DISPATCH', label: 'Despacho Secretaría' },
+    { value: 'CREATE_EXPEDIENTE', label: 'Crear Expediente' }
+  ].sort((a, b) => a.label.localeCompare(b.label))
+
+  const loadUsers = async () => {
+    try {
+      const response = await fetch('/api/users')
+      if (response.ok) {
+        const data = await response.json()
+        setUsersList(data.users || [])
+      }
+    } catch (error) {
+      console.error('Error loading users:', error)
+    }
+  }
 
   const loadAuditLogs = async () => {
     setIsLoadingLogs(true)
@@ -117,6 +151,7 @@ export default function ConfiguracionPage() {
   useEffect(() => {
     if (activeTab === 'audit') {
       loadAuditLogs()
+      loadUsers()
     }
   }, [activeTab, auditFilterUser, auditFilterAction])
 
@@ -625,25 +660,35 @@ export default function ConfiguracionPage() {
                       <label className="block text-sm font-medium text-gray-700 mb-1">
                         Filtrar por Usuario
                       </label>
-                      <input
-                        type="text"
-                        placeholder="ID de Usuario"
-                        value={auditFilterUser === 'all' ? '' : auditFilterUser}
-                        onChange={(e) => setAuditFilterUser(e.target.value || 'all')}
+                      <select
+                        value={auditFilterUser}
+                        onChange={(e) => setAuditFilterUser(e.target.value)}
                         className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                      />
+                      >
+                        <option value="all">Todos los usuarios</option>
+                        {usersList.map((u) => (
+                          <option key={u.id} value={u.id}>
+                            {u.name} ({u.email})
+                          </option>
+                        ))}
+                      </select>
                     </div>
                     <div className="flex-1">
                       <label className="block text-sm font-medium text-gray-700 mb-1">
                         Filtrar por Acción
                       </label>
-                      <input
-                        type="text"
-                        placeholder="Ej: UPDATE_CONFIG"
-                        value={auditFilterAction === 'all' ? '' : auditFilterAction}
-                        onChange={(e) => setAuditFilterAction(e.target.value || 'all')}
+                      <select
+                        value={auditFilterAction}
+                        onChange={(e) => setAuditFilterAction(e.target.value)}
                         className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                      />
+                      >
+                        <option value="all">Todas las acciones</option>
+                        {AUDIT_ACTIONS.map((action) => (
+                          <option key={action.value} value={action.value}>
+                            {action.label}
+                          </option>
+                        ))}
+                      </select>
                     </div>
                   </div>
 

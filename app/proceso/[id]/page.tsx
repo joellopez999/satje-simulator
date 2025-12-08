@@ -453,31 +453,21 @@ export default function ProcesoDetailPage() {
 
                                   {expandedActividades.includes(actividad.id) && (
                                     <div className="mt-4 pt-4 border-t border-gray-200">
-                                      <div className="mb-4">
-                                        <label className="text-sm font-medium text-gray-600">Creado por</label>
-                                        <p className="text-gray-900">{actividad.creado_por}</p>
-                                      </div>
-
-
-                                      <div className="mb-4">
-                                        <label className="text-sm font-medium text-gray-600">Contenido</label>
-                                        <div className="mt-1 p-3 bg-gray-50 rounded-lg">
-                                          <p className="text-gray-900 whitespace-pre-wrap">{actividad.contenido}</p>
-                                        </div>
-                                      </div>
-
+                                      {/* Información Adicional (Metadata) - Moved to top */}
                                       {actividad.metadata && (
                                         <div className="mb-4">
                                           <label className="text-sm font-medium text-gray-600">Información Adicional</label>
                                           <div className="mt-1 p-3 bg-blue-50 rounded-lg">
                                             {/* Información del usuario creador */}
-                                            {actividad.metadata.usuario_creador && (
-                                              <div className="text-sm mb-3 pb-3 border-b border-blue-200">
-                                                <p><strong>Usuario creador:</strong> {actividad.metadata.usuario_creador.nombre}</p>
+                                            <div className="text-sm mb-3 pb-3 border-b border-blue-200">
+                                              <p><strong>Creado por:</strong> {actividad.metadata.usuario_creador?.nombre || 'Desconocido'}</p>
+                                              {actividad.metadata.usuario_creador?.rol && (
                                                 <p><strong>Rol:</strong> {actividad.metadata.usuario_creador.rol}</p>
+                                              )}
+                                              {actividad.metadata.usuario_creador?.email && (
                                                 <p><strong>Email:</strong> {actividad.metadata.usuario_creador.email}</p>
-                                              </div>
-                                            )}
+                                              )}
+                                            </div>
 
                                             {/* Título personalizado */}
                                             {actividad.titulo && (
@@ -519,6 +509,22 @@ export default function ProcesoDetailPage() {
                                           </div>
                                         </div>
                                       )}
+
+                                      {/* Fallback for Creado por if no metadata */}
+                                      {!actividad.metadata && (
+                                        <div className="mb-4">
+                                          <label className="text-sm font-medium text-gray-600">Creado por</label>
+                                          <p className="text-gray-900">{actividad.creado_por}</p>
+                                        </div>
+                                      )}
+
+                                      {/* Contenido - Moved after metadata */}
+                                      <div className="mb-4">
+                                        <label className="text-sm font-medium text-gray-600">Contenido</label>
+                                        <div className="mt-1 p-3 bg-gray-50 rounded-lg">
+                                          <p className="text-gray-900 whitespace-pre-wrap">{actividad.contenido}</p>
+                                        </div>
+                                      </div>
 
                                       {actividad.archivo_url && (
                                         <div className="flex gap-2">

@@ -29,6 +29,17 @@ export function Providers({ children }: { children: ReactNode }) {
       const userSession = localStorage.getItem('satje_user_session')
       if (userSession) {
         const userData = JSON.parse(userSession)
+
+        // Validate ID format (must be UUID)
+        const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(userData.id || '')
+
+        if (!isUuid) {
+          console.warn('Invalid user ID found in session. Clearing session.')
+          localStorage.removeItem('satje_user_session')
+          setUser(null)
+          return
+        }
+
         setUser(userData)
       } else {
         setUser(null)

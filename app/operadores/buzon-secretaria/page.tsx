@@ -204,6 +204,12 @@ Esta acción no se puede deshacer.`)) {
         archivoUrl = uploadResult.url
       }
 
+      if (!user?.id) {
+        alert('Error: No se ha identificado el usuario. Por favor inicie sesión nuevamente.')
+        setIsSubmitting(false)
+        return
+      }
+
       // Crear actividad en Supabase
       const actividadData_supabase = {
         expediente_id: selectedSolicitud.expediente_id,
@@ -211,26 +217,36 @@ Esta acción no se puede deshacer.`)) {
         titulo: actividadData.titulo,
         contenido: actividadData.contenido,
         archivo_url: archivoUrl || undefined,
-        creado_por: user?.id || 'sistema',
+        creado_por: user.id,
         metadata: {
           tipo_actuacion: actividadData.tipo_actuacion,
           proceso_id: selectedSolicitud.proceso_id,
           solicitud_id: selectedSolicitud.id,
           usuario_creador: {
-            id: user?.id || 'sistema',
-            name: user?.name || 'Secretario del Sistema',
-            role: user?.role || 'secretario'
+            id: user.id,
+            name: user.name || 'Secretario del Sistema',
+            role: user.role || 'secretario'
           }
         }
       }
 
-      const result = await createActividad(actividadData_supabase)
 
-      if (!result.success) {
-        alert(`Error al crear actividad: ${result.error}`)
-        setIsSubmitting(false)
-        return
+
+      // Usar API Route para crear la actividad y evitar problemas de RLS
+      const response = await fetch('/api/activities/create', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(actividadData_supabase),
+      })
+
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw new Error(errorData.error || 'Error al crear actividad')
       }
+
+      const result = { success: true, data: await response.json() }
 
       // Actualizar solicitudes locales (para mantener consistencia con localStorage)
       const updatedSolicitudes = solicitudes.map(solicitud => {
@@ -252,9 +268,10 @@ Esta acción no se puede deshacer.`)) {
       // Enviar notificación de Telegram
       try {
         await notifySolicitudCompletada({
-          titulo: selectedSolicitud.titulo,
+          titulo: selectedSolicitud.titulo_providencia || selectedSolicitud.titulo,
           usuario: user?.name || 'Secretario del Sistema',
-          proceso_id: selectedSolicitud.proceso_id
+          proceso_id: selectedSolicitud.proceso_id,
+          numero_causa: selectedSolicitud.numero_causa
         }, {
           chatId: process.env.NEXT_PUBLIC_TELEGRAM_CHAT_ID || ''
         })

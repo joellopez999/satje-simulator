@@ -528,14 +528,14 @@ export default function UsuariosPage() {
                     </tr>
                   </thead>
                   <tbody className="bg-white divide-y divide-gray-200">
-                    {users.map((user) => (
-                      <tr key={user.id} className="hover:bg-gray-50">
+                    {users.map((userItem) => (
+                      <tr key={userItem.id} className="hover:bg-gray-50">
                         <td className="px-6 py-4 whitespace-nowrap">
                           <div className="flex items-center">
-                            {getRoleIcon(user.role)}
+                            {getRoleIcon(userItem.role)}
                             <div className="ml-3">
                               <div className="text-sm font-medium text-gray-900">
-                                {user.name}
+                                {userItem.name}
                               </div>
                             </div>
                           </div>
@@ -543,15 +543,15 @@ export default function UsuariosPage() {
                         <td className="px-6 py-4 whitespace-nowrap">
                           <div className="flex items-center">
                             <Mail className="h-4 w-4 text-gray-400 mr-2" />
-                            <div className="text-sm text-gray-900">{user.email}</div>
+                            <div className="text-sm text-gray-900">{userItem.email}</div>
                           </div>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
                           <div className="flex items-center gap-2">
                             <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
-                              {getRoleLabel(user.role)}
+                              {getRoleLabel(userItem.role)}
                             </span>
-                            {isLastAdmin(user.id) && (
+                            {isLastAdmin(userItem.id) && (
                               <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-red-100 text-red-800">
                                 Último Admin
                               </span>
@@ -560,76 +560,76 @@ export default function UsuariosPage() {
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
                           <div className="flex items-center">
-                            {user.is_active ? (
+                            {userItem.is_active ? (
                               <CheckCircle className="h-5 w-5 text-green-500" />
                             ) : (
                               <XCircle className="h-5 w-5 text-red-500" />
                             )}
-                            <span className={`ml-2 text-sm ${user.is_active ? 'text-green-600' : 'text-red-600'}`}>
-                              {user.is_active ? 'Activo' : 'Inactivo'}
+                            <span className={`ml-2 text-sm ${userItem.is_active ? 'text-green-600' : 'text-red-600'}`}>
+                              {userItem.is_active ? 'Activo' : 'Inactivo'}
                             </span>
                           </div>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
                           <div className="flex items-center">
                             <span className="text-sm font-mono text-gray-900 mr-2">
-                              {getUserPasswordDisplay(user.id)}
+                              {getUserPasswordDisplay(userItem.id)}
                             </span>
                             <button
-                              onClick={() => handleShowPassword(user.id)}
+                              onClick={() => handleShowPassword(userItem.id)}
                               className="text-gray-400 hover:text-gray-600"
-                              title={showPasswords[user.id] ? 'Ocultar contraseña' : 'Mostrar contraseña'}
+                              title={showPasswords[userItem.id] ? 'Ocultar contraseña' : 'Mostrar contraseña'}
                             >
-                              {showPasswords[user.id] ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                              {showPasswords[userItem.id] ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                             </button>
                           </div>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                          {new Date(user.created_at).toLocaleDateString('es-EC')}
+                          {new Date(userItem.created_at).toLocaleDateString('es-EC')}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                           <div className="flex items-center space-x-2">
                             <button
-                              onClick={() => handleEditUser(user)}
+                              onClick={() => handleEditUser(userItem)}
                               className="text-blue-600 hover:text-blue-900 p-1"
                               title="Editar usuario"
                             >
                               <Edit className="h-4 w-4" />
                             </button>
                             <button
-                              onClick={() => handleChangePassword(user)}
+                              onClick={() => handleChangePassword(userItem)}
                               className="text-green-600 hover:text-green-900 p-1"
                               title="Cambiar contraseña"
                             >
                               <Key className="h-4 w-4" />
                             </button>
                             <button
-                              onClick={() => handleToggleStatus(user.id)}
-                              disabled={isLastActiveAdmin(user.id)}
-                              className={`p-1 ${isLastActiveAdmin(user.id)
+                              onClick={() => handleToggleStatus(userItem.id)}
+                              disabled={isLastActiveAdmin(userItem.id)}
+                              className={`p-1 ${isLastActiveAdmin(userItem.id)
                                 ? 'text-gray-400 cursor-not-allowed'
-                                : user.is_active
+                                : userItem.is_active
                                   ? 'text-red-600 hover:text-red-900'
                                   : 'text-green-600 hover:text-green-900'
                                 }`}
-                              title={isLastActiveAdmin(user.id)
+                              title={isLastActiveAdmin(userItem.id)
                                 ? 'No se puede desactivar el último administrador activo'
-                                : user.is_active
+                                : userItem.is_active
                                   ? 'Desactivar usuario'
                                   : 'Activar usuario'
                               }
                             >
-                              {user.is_active ? <XCircle className="h-4 w-4" /> : <CheckCircle className="h-4 w-4" />}
+                              {userItem.is_active ? <XCircle className="h-4 w-4" /> : <CheckCircle className="h-4 w-4" />}
                             </button>
-                            {user.id !== user?.id && (
+                            {userItem.id !== user?.id && (
                               <button
-                                onClick={() => handleDeleteUser(user.id)}
-                                disabled={isLastAdmin(user.id)}
-                                className={`p-1 ${isLastAdmin(user.id)
+                                onClick={() => handleDeleteUser(userItem.id)}
+                                disabled={isLastAdmin(userItem.id)}
+                                className={`p-1 ${isLastAdmin(userItem.id)
                                   ? 'text-gray-400 cursor-not-allowed'
                                   : 'text-red-600 hover:text-red-900'
                                   }`}
-                                title={isLastAdmin(user.id)
+                                title={isLastAdmin(userItem.id)
                                   ? 'No se puede eliminar el último administrador'
                                   : 'Eliminar usuario'
                                 }

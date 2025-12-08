@@ -10,14 +10,45 @@ import { useUser } from '@/app/providers'
 
 export default function HomePage() {
   const [searchResults, setSearchResults] = useState<any[]>([])
+  const [recentProcesses, setRecentProcesses] = useState<any[]>([])
+  const [currentPage, setCurrentPage] = useState(1)
+  const [totalRecent, setTotalRecent] = useState(0)
   const [isSearching, setIsSearching] = useState(false)
+  const [isLoadingRecent, setIsLoadingRecent] = useState(true)
   const [searchTerm, setSearchTerm] = useState('')
   const [showNoResultsMessage, setShowNoResultsMessage] = useState(false)
   const [isSidebarOpen, setIsSidebarOpen] = useState(false)
   const { user, isLoading } = useUser()
   const router = useRouter()
+  const ITEMS_PER_PAGE = 10
 
-  // No redirigir automáticamente - permitir acceso sin autenticación
+  // Cargar procesos recientes
+  useEffect(() => {
+    loadRecentProcesses()
+  }, [currentPage])
+
+  const loadRecentProcesses = async () => {
+    setIsLoadingRecent(true)
+    try {
+      const params = new URLSearchParams()
+      params.append('limit', ITEMS_PER_PAGE.toString())
+      params.append('offset', ((currentPage - 1) * ITEMS_PER_PAGE).toString())
+
+      const response = await fetch(`/api/processes/search?${params.toString()}`)
+      if (response.ok) {
+        const data = await response.json()
+        // La API actual devuelve array directo, necesitamos ajustar la API o manejarlo aquí
+        // Por ahora asumimos que devuelve array y no tenemos total count en esta API específica
+        // TODO: Actualizar API para devolver { data, total }
+        setRecentProcesses(data)
+        // setTotalRecent(data.total) 
+      }
+    } catch (error) {
+      console.error('Error loading recent processes:', error)
+    } finally {
+      setIsLoadingRecent(false)
+    }
+  }
 
   // Búsqueda en tiempo real usando searchProcesses
   useEffect(() => {
@@ -230,6 +261,124 @@ export default function HomePage() {
                 <p className="text-gray-600">No se encontraron procesos con los criterios de búsqueda</p>
               </div>
             ) : null}
+
+            {/* Recent Processes Table */}
+            {!isSearching && searchResults.length === 0 && (
+              <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
+                <div className="p-6 border-b border-gray-200">
+                  <h3 className="text-lg font-semibold text-gray-900">
+                    Últimos Procesos Ingresados
+                  </h3>
+                </div>
+
+                <div className="overflow-x-auto">
+                  <table className="min-w-full divide-y divide-gray-200">
+                    <thead className="bg-gray-50">
+                      <tr>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Número Causa</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actor / Demandado</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Materia</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Asunto</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Fecha</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Acción</th>
+                      </tr>
+                    </thead>
+                    <tbody className="bg-white divide-y divide-gray-200">
+                      {isLoadingRecent ? (
+                        <tr>
+                          <td colSpan={6} className="px-6 py-4 text-center">
+                            <div className="flex justify-center">
+                              <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600"></div>
+                            </div>
+                          </td>
+                        </tr>
+                      ) : recentProcesses.length > 0 ? (
+                        recentProcesses.map((process) => (
+                          <tr key={process.id} className="hover:bg-gray-50">
+                            <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                              {process.numero_causa}
+                            </td>
+                            <td className="px-6 py-4 text-sm text-gray-500">
+                              <div className="font-medium text-gray-900">{process.actor}</div>
+                              <div className="text-xs">vs. {process.demandado}</div>
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                              {process.materia}
+                            </td>
+                            <td className="px-6 py-4 text-sm text-gray-500">
+                              {process.asunto}
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                              {new Date(process.fecha_creacion).toLocaleDateString('es-EC')}
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                              <a
+                                href={`/proceso/${process.id}`}
+                                className="text-blue-600 hover:text-blue-900 flex items-center gap-1"
+                              >
+                                <FileText className="h-4 w-4" />
+                                Ver
+                              </a>
+                            </td>
+                          </tr>
+                        ))
+                      ) : (
+                        <tr>
+                          <td colSpan={6} className="px-6 py-4 text-center text-sm text-gray-500">
+                            No hay procesos recientes
+                          </td>
+                        </tr>
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+
+                {/* Pagination */}
+                <div className="bg-gray-50 px-4 py-3 border-t border-gray-200 flex items-center justify-between sm:px-6">
+                  <div className="flex-1 flex justify-between sm:hidden">
+                    <button
+                      onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                      disabled={currentPage === 1}
+                      className="relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50"
+                    >
+                      Anterior
+                    </button>
+                    <button
+                      onClick={() => setCurrentPage(p => p + 1)}
+                      disabled={recentProcesses.length < ITEMS_PER_PAGE}
+                      className="ml-3 relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50"
+                    >
+                      Siguiente
+                    </button>
+                  </div>
+                  <div className="hidden sm:flex-1 sm:flex sm:items-center sm:justify-between">
+                    <div>
+                      <p className="text-sm text-gray-700">
+                        Página <span className="font-medium">{currentPage}</span>
+                      </p>
+                    </div>
+                    <div>
+                      <nav className="relative z-0 inline-flex rounded-md shadow-sm -space-x-px" aria-label="Pagination">
+                        <button
+                          onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                          disabled={currentPage === 1}
+                          className="relative inline-flex items-center px-2 py-2 rounded-l-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50 disabled:opacity-50"
+                        >
+                          Anterior
+                        </button>
+                        <button
+                          onClick={() => setCurrentPage(p => p + 1)}
+                          disabled={recentProcesses.length < ITEMS_PER_PAGE}
+                          className="relative inline-flex items-center px-2 py-2 rounded-r-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50 disabled:opacity-50"
+                        >
+                          Siguiente
+                        </button>
+                      </nav>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
         </div>
       </div>
