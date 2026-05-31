@@ -18,7 +18,7 @@ export interface TelegramConfig {
 
 // Configuración por defecto
 const defaultConfig: TelegramConfig = {
-  botToken: '8498460518:AAEbpoLmb4KfmDezZyQV-GltZShAPcSMUcs',
+  botToken: process.env.TELEGRAM_BOT_TOKEN || '',
   chatId: '', // Se configurará dinámicamente
   n8nWebhookUrl: process.env.N8N_WEBHOOK_URL || ''
 }

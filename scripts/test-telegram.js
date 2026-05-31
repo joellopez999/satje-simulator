@@ -3,8 +3,8 @@
 // Script para probar las notificaciones de Telegram
 const https = require('https');
 
-const BOT_TOKEN = '8498460518:AAEbpoLmb4KfmDezZyQV-GltZShAPcSMUcs';
-const CHAT_ID = '250790216';
+const BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN || 'TU_BOT_TOKEN_AQUI';
+const CHAT_ID = process.env.NEXT_PUBLIC_TELEGRAM_CHAT_ID || 'TU_CHAT_ID_AQUI';
 
 // Función para enviar mensaje de prueba
 function sendTestMessage() {

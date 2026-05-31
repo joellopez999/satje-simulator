@@ -2,7 +2,7 @@
 
 ## 📋 Información del Bot
 - **Nombre:** satjesimulatorbot
-- **Token:** 8498460518:AAEbpoLmb4KfmDezZyQV-GltZShAPcSMUcs
+- **Token:** tu_telegram_bot_token_aqui
 
 ## 🔧 Configuración en N8N
 
@@ -20,7 +20,7 @@
 - **Autenticación:** None (o API Key si prefieres)
 
 #### **Configuración del Nodo Telegram:**
-- **Bot Token:** `8498460518:AAEbpoLmb4KfmDezZyQV-GltZShAPcSMUcs`
+- **Bot Token:** `tu_telegram_bot_token_aqui`
 - **Chat ID:** Configurar dinámicamente desde el webhook
 - **Mensaje:** Formateado desde el nodo Function
 
@@ -36,7 +36,7 @@
   "usuario": "Nombre del usuario",
   "fecha": "2024-01-01T10:00:00Z",
   "url": "https://tu-app.com/proceso/123",
-  "botToken": "8498460518:AAEbpoLmb4KfmDezZyQV-GltZShAPcSMUcs",
+  "botToken": "tu_telegram_bot_token_aqui",
   "chatId": "ID del chat de destino"
 }
 ```
@@ -45,14 +45,14 @@
 
 #### **En Vercel:**
 ```bash
-TELEGRAM_BOT_TOKEN=8498460518:AAEbpoLmb4KfmDezZyQV-GltZShAPcSMUcs
+TELEGRAM_BOT_TOKEN=tu_telegram_bot_token_aqui
 NEXT_PUBLIC_TELEGRAM_CHAT_ID=tu_chat_id_aqui
 N8N_WEBHOOK_URL=https://tu-n8n.com/webhook/satje-notifications
 ```
 
 #### **En .env.local:**
 ```bash
-TELEGRAM_BOT_TOKEN=8498460518:AAEbpoLmb4KfmDezZyQV-GltZShAPcSMUcs
+TELEGRAM_BOT_TOKEN=tu_telegram_bot_token_aqui
 NEXT_PUBLIC_TELEGRAM_CHAT_ID=tu_chat_id_aqui
 N8N_WEBHOOK_URL=https://tu-n8n.com/webhook/satje-notifications
 ```
@@ -63,7 +63,7 @@ N8N_WEBHOOK_URL=https://tu-n8n.com/webhook/satje-notifications
 
 Para obtener el Chat ID:
 1. Envía un mensaje al bot `@satjesimulatorbot`
-2. Visita: `https://api.telegram.org/bot8498460518:AAEbpoLmb4KfmDezZyQV-GltZShAPcSMUcs/getUpdates`
+2. Visita: `https://api.telegram.org/bot<tu_telegram_bot_token_aqui>/getUpdates`
 3. Busca el `chat.id` en la respuesta
 
 ### 2. Configurar N8N
