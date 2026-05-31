@@ -191,4 +191,4 @@ cat .env.production
 
 ---
 
-**¡Tu proyecto está listo para producción! 🎉**
+**¡Listo para producción! 🎉**
